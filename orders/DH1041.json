@@ -8,8 +8,8 @@
   "address": "Qua quán nhận trực tiếp",
   "paymentMethod": "cod",
   "transferMemo": "",
-  "paymentStatus": "unpaid",
-  "status": "preparing",
+  "paymentStatus": "paid",
+  "status": "completed",
   "createdAt": "2026-11-19T13:13:30.317Z",
   "receiptImage": "",
   "items": [
