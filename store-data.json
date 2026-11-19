@@ -1,11 +1,13 @@
 {
-  "updatedAt": "2026-11-19T15:08:16.267Z",
+  "updatedAt": "2026-11-19T15:08:25.089Z",
   "settings": {
     "shopName": "Tiệm Trà Sữa & Ăn Vặt Nhà Sunny",
     "bankName": "MB Bank (Ngân hàng Quân Đội)",
     "bankAccount": "8519062009",
     "bankOwner": "NGUYEN NHUT TRUONG",
     "shopAddress": "Gan Thpt Thoi Long",
+    "ownerNote": "",
+    "bankQrImage": "",
     "webhookUrl": "https://script.google.com/macros/s/AKfycbzcK3aeAMGSbAsuqv-8tkChNU5vaoEFJ2TK-ite6aFzfy6D5wWoSkPbXI2Qvwimf99D/exec"
   },
   "content": {
