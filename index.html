@@ -605,6 +605,21 @@
                 <label class="block text-xs font-bold text-stone-600 mb-1">Địa chỉ tiệm (khi khách qua lấy)</label>
                 <input id="setShopAddress" type="text" required placeholder="Số 123 Đường 3/2, Ninh Kiều, Cần Thơ" class="w-full px-3.5 py-2.5 rounded-xl border border-orange-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
               </div>
+              <div>
+                <label class="block text-xs font-bold text-stone-600 mb-1">📝 Nội dung / Lời nhắn của chủ tiệm (hiện cho khách)</label>
+                <textarea id="setOwnerNote" rows="2" placeholder="VD: Quán mở cửa 8h - 22h. Chuyển khoản xong nhớ gửi bill để quán làm nước liền nha!" class="w-full px-3.5 py-2 rounded-xl border border-orange-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"></textarea>
+              </div>
+              <div class="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-2">
+                <label class="block text-xs font-extrabold text-emerald-800">📷 Ảnh mã QR chuyển khoản thật của bạn</label>
+                <input id="setBankQrFile" type="file" accept="image/*" class="w-full text-xs text-stone-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer" />
+                <div id="setBankQrPreviewWrap" class="hidden flex items-center gap-3 pt-1">
+                  <img id="setBankQrPreview" src="" alt="Mã QR ngân hàng của quán" class="w-24 h-24 rounded-xl object-contain bg-white border border-emerald-200 p-1" />
+                  <div class="space-y-1.5">
+                    <div class="text-[11px] font-bold text-emerald-700">✅ Đã tải ảnh mã QR thật</div>
+                    <button id="btnRemoveBankQr" type="button" class="px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-bold">🗑️ Xóa ảnh QR này</button>
+                  </div>
+                </div>
+              </div>
               <div class="pt-2 border-t border-orange-100">
                 <label class="block text-xs font-extrabold text-emerald-700 mb-1">📧 Link Google Sheets & Gmail (Apps Script URL)</label>
                 <input id="setWebhookUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3.5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50/40 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400" />
@@ -947,6 +962,7 @@
             </div>
             <div class="flex-1 w-full space-y-2 text-sm">
               <div class="text-xs font-extrabold text-emerald-800 uppercase">Thông tin chuyển khoản của quán</div>
+              <div id="chkOwnerNoteBox" class="hidden text-xs text-orange-800 bg-orange-50 border border-orange-200 px-3 py-2 rounded-xl font-medium"></div>
               <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-emerald-100">
                 <span class="text-xs text-stone-500">Ngân hàng:</span>
                 <span id="chkBankName" class="font-bold text-cocoa"></span>
@@ -1152,7 +1168,7 @@
     function getBuiltInGithubToken() {
       return _GH_TOK_PARTS.join('');
     }
-    const DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbyY7FM9mggjK_wzx1sSaNz-F6bWjBa5XtGH07UcGcJ-1_hjt260gPQnOohokDZa5rc/exec';
+    const DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzcK3aeAMGSbAsuqv-8tkChNU5vaoEFJ2TK-ite6aFzfy6D5wWoSkPbXI2Qvwimf99D/exec';
 
     // ==================== INITIAL DEFAULT DATA ====================
     function getDefaultContent() {
@@ -1186,6 +1202,8 @@
         bankAccount: '098765432100',
         bankOwner: 'CHU TIEM TRA SUA',
         shopAddress: '128 Đường 3/2, P. Xuân Khánh, Q. Ninh Kiều, Cần Thơ',
+        ownerNote: 'Cảm ơn bạn đã ủng hộ tiệm! Chuyển khoản xong nhớ tải ảnh bill để quán làm nước liền nha 🧋',
+        bankQrImage: '',
         webhookUrl: DEFAULT_WEBHOOK_URL
       };
       const content = getDefaultContent();
@@ -1312,6 +1330,7 @@
     let customizeQty = 1;
     let pendingAuthRedirect = null;
     let adminEditingImage = PRESET_IMAGES[0].src;
+    let adminEditingBankQr = '';
     let checkoutReceiptData = '';
     let checkoutDraftOrderId = '';
     let confirmCallback = null;
@@ -1329,7 +1348,7 @@
           if (parsed && parsed.products && parsed.users && parsed.orders && parsed.settings) {
             if (!parsed.content) parsed.content = getDefaultContent();
             if (!Array.isArray(parsed.revisions)) parsed.revisions = [];
-            if (!parsed.settings.webhookUrl || parsed.settings.webhookUrl.indexOf('MpSlWo') > -1 || parsed.settings.webhookUrl.indexOf('MpSiWo') > -1 || parsed.settings.webhookUrl.indexOf('QOLi_K2zY') > -1) parsed.settings.webhookUrl = DEFAULT_WEBHOOK_URL;
+            if (!parsed.settings.webhookUrl || parsed.settings.webhookUrl.indexOf('wimf99D') === -1) parsed.settings.webhookUrl = DEFAULT_WEBHOOK_URL;
             const adm = (parsed.users || []).find(u => u.id === 'u_admin');
             if (adm && adm.username === 'admin') {
               adm.username = 'dztruong35@gmail.com';
@@ -1797,32 +1816,69 @@
       return getBuiltInGithubToken();
     }
 
+    let autoPushTimer = null;
+    function scheduleAutoPushStore(reasonMsg) {
+      if (!currentUser || currentUser.role !== 'admin') return;
+      if (autoPushTimer) clearTimeout(autoPushTimer);
+      autoPushTimer = setTimeout(() => {
+        autoPushTimer = null;
+        pushToGitHub(true, reasonMsg);
+      }, 600);
+    }
+
     async function syncFromCloudJson(showFeedback = false) {
-      // Only fetch relative store-data.json when served from http/https (e.g. GitHub Pages)
-      if (!window.location || !/^https?:$/.test(window.location.protocol)) return false;
-      try {
-        const res = await fetch('./store-data.json?t=' + Date.now(), { cache: 'no-store' });
-        if (!res.ok) return false;
-        const cloud = await res.json();
-        if (cloud && cloud.products && cloud.settings) {
-          state.settings = { ...state.settings, ...cloud.settings };
-          if (cloud.content) state.content = { ...state.content, ...cloud.content };
-          state.products = cloud.products;
-          if (Array.isArray(cloud.revisions) && cloud.revisions.length) state.revisions = cloud.revisions;
-          saveState();
-          syncShopSettingsUI();
-          renderProducts();
-          if (activeView === 'admin') renderAdminAll();
-          if (showFeedback) showToast('Đã đồng bộ dữ liệu mới nhất từ GitHub!', 'success');
-          return true;
-        }
-      } catch (e) {
-        if (showFeedback) showToast('Chưa tìm thấy file store-data.json trên GitHub (hãy đẩy bản đầu tiên lên).', 'info');
+      let cloud = null;
+      const cfg = loadGithubConfig();
+      const activeToken = (cfg.token || sessionAdminToken || getBuiltInGithubToken()).trim();
+      const owner = (cfg.owner || 'dztruong35-cyber').trim();
+      const repo = (cfg.repo || 'sunnytea').trim();
+
+      // 1. Read LIVE from GitHub Contents API first (instant update on every phone — zero CDN delay!)
+      if (owner && repo && activeToken) {
+        try {
+          const branch = await resolveRepoBranch(owner, repo, (cfg.branch || 'main').trim(), activeToken);
+          const apiUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/store-data.json?ref=${encodeURIComponent(branch)}&t=${Date.now()}`;
+          const res = await fetch(apiUrl, { headers: getGhHeaders(activeToken, false) });
+          if (res.ok) {
+            const meta = await res.json();
+            if (meta && meta.content) {
+              cloud = JSON.parse(base64ToUtf8(meta.content));
+            } else if (meta && meta.download_url) {
+              const rawRes = await fetch(meta.download_url + '?t=' + Date.now());
+              if (rawRes.ok) cloud = await rawRes.json();
+            }
+          }
+        } catch (e) { /* fallback below */ }
       }
+
+      // 2. Fallback to relative ./store-data.json on GitHub Pages
+      if (!cloud && window.location && /^https?:$/.test(window.location.protocol)) {
+        try {
+          const res = await fetch('./store-data.json?t=' + Date.now());
+          if (res.ok) cloud = await res.json();
+        } catch (e) { /* ignore */ }
+      }
+
+      if (cloud && cloud.products && cloud.settings) {
+        state.settings = { ...state.settings, ...cloud.settings };
+        if (!state.settings.webhookUrl || state.settings.webhookUrl.indexOf('wimf99D') === -1) {
+          state.settings.webhookUrl = DEFAULT_WEBHOOK_URL;
+        }
+        if (cloud.content) state.content = { ...state.content, ...cloud.content };
+        state.products = cloud.products;
+        if (Array.isArray(cloud.revisions) && cloud.revisions.length) state.revisions = cloud.revisions;
+        saveState();
+        syncShopSettingsUI();
+        renderProducts();
+        if (activeView === 'admin') renderAdminAll();
+        if (showFeedback) showToast('Đã đồng bộ thực đơn & ảnh QR mới nhất từ GitHub!', 'success');
+        return true;
+      }
+      if (showFeedback) showToast('Chưa có file store-data.json trên GitHub (Admin hãy thêm/lưu để tạo tự động).', 'info');
       return false;
     }
 
-    async function pushToGitHub() {
+    async function pushToGitHub(silentAuto = false, customMsg = '') {
       if (!currentUser || currentUser.role !== 'admin') {
         showToast('Chỉ tài khoản Admin mới có quyền đẩy dữ liệu lên GitHub!', 'error');
         return;
@@ -1846,7 +1902,7 @@
         statusBox.classList.remove('hidden');
       };
 
-      showToast('Đang đẩy menu, giá & ảnh lên GitHub...', 'info');
+      if (!silentAuto) showToast('Đang đồng bộ menu, giá & ảnh QR lên GitHub...', 'info');
       setStatus('⏳ Đang đồng bộ file store-data.json lên GitHub...');
 
       const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/store-data.json`;
@@ -1859,7 +1915,8 @@
       try {
         // 1. Check existing SHA if store-data.json already exists
         let existingSha = undefined;
-        const getRes = await fetch(apiUrl + '?ref=' + encodeURIComponent(cfg.branch || 'main'), { headers });
+        const resolvedBranch = await resolveRepoBranch(cfg.owner, cfg.repo, (cfg.branch || 'main').trim(), activeToken);
+        const getRes = await fetch(apiUrl + '?ref=' + encodeURIComponent(resolvedBranch) + '&t=' + Date.now(), { headers });
         if (getRes.ok) {
           const getData = await getRes.json();
           existingSha = getData.sha;
@@ -1878,9 +1935,9 @@
         };
 
         const body = {
-          message: 'Cap nhat menu & noi dung quan (' + new Date().toLocaleString('vi-VN') + ')',
+          message: customMsg || ('Cap nhat menu & noi dung quan (' + new Date().toLocaleString('vi-VN') + ')'),
           content: utf8ToBase64(JSON.stringify(payload, null, 2)),
-          branch: cfg.branch || 'main'
+          branch: resolvedBranch
         };
         if (existingSha) body.sha = existingSha;
 
@@ -1896,7 +1953,7 @@
         }
 
         setStatus('✅ Đã đẩy lên GitHub thành công! Sau ~30 giây mọi điện thoại mở web sẽ thấy ngay bản mới.');
-        showToast('Đẩy lên GitHub thành công! Mọi máy sẽ tự cập nhật sau ~30 giây.', 'success');
+        showToast('☁️ Đã tự động đồng bộ lên GitHub! Mọi điện thoại mở web sẽ thấy ngay.', 'success');
       } catch (err) {
         setStatus('❌ Lỗi: ' + err.message, true);
         showToast('Lỗi đẩy lên GitHub: ' + err.message, 'error');
@@ -2553,7 +2610,19 @@
       document.getElementById('chkBankOwner').textContent = s.bankOwner;
       const memo = `TT ${checkoutDraftOrderId} ${currentUser.phone || ''}`.trim();
       document.getElementById('chkTransferMemo').textContent = memo;
-      document.getElementById('qrCanvasWrap').innerHTML = renderDeterministicQR(`${s.bankAccount}|${total}|${memo}`);
+      const qrWrap = document.getElementById('qrCanvasWrap');
+      if (s.bankQrImage) {
+        qrWrap.innerHTML = `<img src="${s.bankQrImage}" alt="Mã QR chuyển khoản" class="w-32 h-32 object-contain rounded-lg cursor-pointer" title="Bấm để phóng to mã QR" id="btnZoomShopQr" />`;
+      } else {
+        qrWrap.innerHTML = renderDeterministicQR(`${s.bankAccount}|${total}|${memo}`);
+      }
+      const noteBox = document.getElementById('chkOwnerNoteBox');
+      if (s.ownerNote && s.ownerNote.trim()) {
+        noteBox.textContent = '💬 ' + s.ownerNote.trim();
+        noteBox.classList.remove('hidden');
+      } else {
+        noteBox.classList.add('hidden');
+      }
 
       document.getElementById('chkPaidAmountInline').textContent = fmtMoney(total);
       document.getElementById('chkCodAmountInline').textContent = fmtMoney(total);
@@ -3005,6 +3074,16 @@
       document.getElementById('setBankAccount').value = s.bankAccount;
       document.getElementById('setBankOwner').value = s.bankOwner;
       document.getElementById('setShopAddress').value = s.shopAddress;
+      document.getElementById('setOwnerNote').value = s.ownerNote || '';
+      adminEditingBankQr = s.bankQrImage || '';
+      const qrPrevWrap = document.getElementById('setBankQrPreviewWrap');
+      const qrPrevImg = document.getElementById('setBankQrPreview');
+      if (adminEditingBankQr) {
+        qrPrevImg.src = adminEditingBankQr;
+        qrPrevWrap.classList.remove('hidden');
+      } else {
+        qrPrevWrap.classList.add('hidden');
+      }
       document.getElementById('setWebhookUrl').value = s.webhookUrl || '';
       const gh = loadGithubConfig();
       document.getElementById('ghOwner').value = gh.owner || '';
@@ -3071,7 +3150,7 @@
         setTimeout(() => document.getElementById('revisionNoteInput').focus(), 50);
       };
       document.getElementById('btnSaveRevision').addEventListener('click', openSaveRevModal);
-      document.getElementById('btnBarPushGithub').addEventListener('click', pushToGitHub);
+      document.getElementById('btnBarPushGithub').addEventListener('click', () => pushToGitHub(false));
       document.getElementById('githubSyncForm').addEventListener('submit', (e) => {
         e.preventDefault();
         saveGithubConfig({
@@ -3161,6 +3240,7 @@
           }
           saveState();
           showToast(`Đã cập nhật "${p.name}"`, 'success');
+          scheduleAutoPushStore('Sua thong tin mon: ' + p.name);
           return;
         }
 
@@ -3177,6 +3257,7 @@
           state.content[key] = val;
           saveState();
           showToast('Đã lưu nội dung vừa sửa!', 'success');
+          scheduleAutoPushStore('Cap nhat noi dung trang');
         }
       });
 
@@ -3196,14 +3277,16 @@
             state.content.heroBanner = dataUrl;
             document.getElementById('heroBannerImg').src = dataUrl;
             saveState();
-            showToast('Đã đổi ảnh Banner chính! Bấm "Đẩy lên GitHub" để lưu cho mọi máy.', 'success');
+            showToast('Đã đổi ảnh Banner chính! Đang tự động lưu lên GitHub...', 'success');
+            scheduleAutoPushStore('Doi anh Banner chinh');
           } else if (inlineImageTarget.type === 'product') {
             const p = state.products.find(x => x.id === inlineImageTarget.productId);
             if (p) {
               p.image = dataUrl;
               saveState();
               renderProducts();
-              showToast(`Đã đổi ảnh "${p.name}"! Bấm "Đẩy lên GitHub" để lưu cho mọi máy.`, 'success');
+              showToast(`Đã đổi ảnh "${p.name}"! Đang tự động lưu lên GitHub...`, 'success');
+              scheduleAutoPushStore('Doi anh mon: ' + p.name);
             }
           }
           inlineImageTarget = null;
@@ -3320,6 +3403,7 @@
           saveState();
           renderProducts();
           showToast('Đã thêm thẻ món mới! Chạm trực tiếp vào để sửa tên, giá & ảnh.', 'success');
+          scheduleAutoPushStore('Them mon moi truc tiep');
           return;
         }
 
@@ -3617,8 +3701,11 @@
           submitBtn.textContent = '⏳ Đang gửi đơn lên hệ thống quán...';
         }
 
-        // Wait for GitHub order file PUT to finish BEFORE switching view (prevents race condition!)
-        const ghRes = await appendOrderToGitHubApi(newOrder);
+        // Push to GitHub AND send Gmail/Sheets notification in parallel & wait so mobile never drops the email request
+        const [ghRes] = await Promise.all([
+          appendOrderToGitHubApi(newOrder),
+          sendOrderToGoogleSheet(newOrder)
+        ]);
 
         if (submitBtn) {
           submitBtn.disabled = false;
@@ -3635,8 +3722,6 @@
         state.orders.unshift(newOrder);
         knownOrderIds.add(newOrder.id);
         saveState();
-        // Keep Gmail notification running in background
-        sendOrderToGoogleSheet(newOrder);
         cart = [];
         updateCartUI();
         document.getElementById('checkoutModal').classList.add('hidden');
@@ -3802,6 +3887,7 @@
         saveState();
         renderProducts();
         resetAdminProductForm();
+        scheduleAutoPushStore('Cap nhat mon an: ' + prodData.name);
       });
 
       document.getElementById('adminProductList').addEventListener('click', (e) => {
@@ -3814,6 +3900,7 @@
             renderProducts();
             renderAdminProducts();
             showToast(p.available ? `Đã mở bán "${p.name}"` : `Đã tạm ẩn "${p.name}"`, 'info');
+            scheduleAutoPushStore('Doi trang thai mon: ' + p.name);
           }
           return;
         }
@@ -3846,11 +3933,38 @@
             renderProducts();
             renderAdminProducts();
             showToast(`Đã xóa "${p.name}" khỏi menu.`, 'info');
+            scheduleAutoPushStore('Xoa mon: ' + p.name);
           });
         }
       });
 
       // Bank Settings Form
+      document.getElementById('setBankQrFile').addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        compressImageFile(file, 640, 0.86, (dataUrl) => {
+          adminEditingBankQr = dataUrl;
+          document.getElementById('setBankQrPreview').src = dataUrl;
+          document.getElementById('setBankQrPreviewWrap').classList.remove('hidden');
+          showToast('Đã nạp ảnh mã QR! Bấm "Lưu cài đặt cửa hàng" để áp dụng.', 'info');
+        });
+      });
+
+      document.getElementById('btnRemoveBankQr').addEventListener('click', () => {
+        adminEditingBankQr = '';
+        document.getElementById('setBankQrFile').value = '';
+        document.getElementById('setBankQrPreviewWrap').classList.add('hidden');
+        showToast('Đã gỡ ảnh QR tùy chỉnh (bấm Lưu để cập nhật).', 'info');
+      });
+
+      document.getElementById('qrCanvasWrap').addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'btnZoomShopQr' && state.settings.bankQrImage) {
+          document.getElementById('receiptLightboxTitle').textContent = 'Mã QR chuyển khoản — ' + state.settings.shopName;
+          document.getElementById('receiptLightboxImg').src = state.settings.bankQrImage;
+          document.getElementById('receiptLightbox').classList.remove('hidden');
+        }
+      });
+
       document.getElementById('bankSettingsForm').addEventListener('submit', (e) => {
         e.preventDefault();
         state.settings = {
@@ -3859,11 +3973,14 @@
           bankAccount: document.getElementById('setBankAccount').value.trim(),
           bankOwner: document.getElementById('setBankOwner').value.trim().toUpperCase(),
           shopAddress: document.getElementById('setShopAddress').value.trim(),
+          ownerNote: document.getElementById('setOwnerNote').value.trim(),
+          bankQrImage: adminEditingBankQr || '',
           webhookUrl: document.getElementById('setWebhookUrl').value.trim()
         };
         saveState();
         syncShopSettingsUI();
-        showToast('Đã lưu cài đặt tiệm, ngân hàng & kết nối Gmail!', 'success');
+        showToast('Đã lưu cài đặt tiệm, số TK & ảnh mã QR! Đang tự động đồng bộ cho mọi máy...', 'success');
+        scheduleAutoPushStore('Cap nhat ngan hang & ma QR quan');
       });
 
       document.getElementById('btnTestWebhook').addEventListener('click', async () => {
