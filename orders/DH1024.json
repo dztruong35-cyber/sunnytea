@@ -1,0 +1,28 @@
+{
+  "id": "DH1024",
+  "userId": "u_1795082409253",
+  "customerName": "Nguyễn Nhựt Trường",
+  "customerPhone": "0939893304",
+  "customerDob": "2009-06-19",
+  "receiveType": "delivery",
+  "address": "Kv long định",
+  "paymentMethod": "cod",
+  "transferMemo": "",
+  "paymentStatus": "unpaid",
+  "status": "pending",
+  "createdAt": "2026-11-19T15:37:06.538Z",
+  "receiptImage": "",
+  "items": [
+    {
+      "productId": "p2",
+      "name": "Bánh Tráng Trộn Sài Gòn Full Topping",
+      "category": "Bánh tráng",
+      "size": "Phần thường",
+      "toppings": [],
+      "note": "",
+      "qty": 1,
+      "unitPrice": 30000
+    }
+  ],
+  "total": 30000
+}
