@@ -481,6 +481,9 @@
             <!-- Rendered by JS -->
           </div>
           <div class="flex flex-wrap items-center gap-2">
+            <button id="btnSyncOrdersNow" type="button" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold transition">
+              🔄 Tải đơn mới từ Sheets
+            </button>
             <button id="btnClearDoneOrders" type="button" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold transition">
               🧹 Xóa đơn đã xong/hủy
             </button>
@@ -1138,7 +1141,15 @@
     };
 
     const STORAGE_KEY = 'tiem_tra_sua_an_vat_v3';
+    const SESSION_USER_KEY = 'tiem_tra_sua_session_uid_v1';
     const GH_ADMIN_CONFIG_KEY = 'tiem_tra_sua_gh_admin_cfg_v1';
+    // AES-256-GCM + PBKDF2 encrypted GitHub token (unlocks automatically with Admin password)
+    const ENC_GH_TOKEN_VAULT = {
+      s: 'YIhiWl8/6/Gv6M4ZAzlcMA==',
+      i: 'YqDfrq15TIWR4aDV',
+      c: 'aW/fD5toQrvTDaYJ4mERb+XBaYMCaJLdc6CFoVhu0oEHVFJAJ9vxv+4txfD29YJAfBAm4mEXg9hu9S/ms50ezO/ugiDOj+9rDklVH4x0OM2WeRKkhRFYdE2VSpevvMMbT1RxU80Kz8z26VEa+A=='
+    };
+    let sessionAdminToken = '';
     const DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwAfrAkSCfg5vaU20zaczMkkmzChs_79TNXbrW12FuYctZOc0MpSiWoUx2N-b4FMISD/exec';
 
     // ==================== INITIAL DEFAULT DATA ====================
@@ -1302,6 +1313,8 @@
     let checkoutReceiptData = '';
     let checkoutDraftOrderId = '';
     let confirmCallback = null;
+    let adminOrderPollTimer = null;
+    let knownOrderIds = new Set();
     let revenueChartInstance = null;
     let categoryChartInstance = null;
 
@@ -1462,7 +1475,13 @@
       reader.readAsDataURL(file);
     }
 
-    async function sendOrderToGoogleSheet(orderPayload) {
+    function playOrderBell() {
+      if (!soundEnabled) return;
+      playPopSound(660, 990);
+      setTimeout(() => playPopSound(880, 1320), 170);
+    }
+
+    async function postToGoogleSheet(payload) {
       const url = (state.settings && state.settings.webhookUrl ? state.settings.webhookUrl : '').trim();
       if (!url) return { sent: false, reason: 'Chưa cấu hình URL Google Apps Script' };
       try {
@@ -1470,11 +1489,89 @@
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(orderPayload)
+          body: JSON.stringify(payload)
         });
         return { sent: true };
       } catch (err) {
         return { sent: false, reason: String(err) };
+      }
+    }
+
+    async function sendOrderToGoogleSheet(orderPayload) {
+      return postToGoogleSheet({ action: 'createOrder', ...orderPayload });
+    }
+
+    async function syncOrdersFromGoogleSheet(showManualToast = false) {
+      const url = (state.settings && state.settings.webhookUrl ? state.settings.webhookUrl : '').trim();
+      if (!url) return false;
+      try {
+        const sep = url.includes('?') ? '&' : '?';
+        const res = await fetch(url + sep + 'action=getOrders&t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data || !Array.isArray(data.orders)) {
+          if (showManualToast) showToast('Apps Script chưa có hàm đọc đơn (doGet). Hãy cập nhật code Apps Script v2 nhé!', 'error');
+          return false;
+        }
+
+        const prevCount = knownOrderIds.size;
+        const incoming = data.orders;
+        const newlyArrived = [];
+
+        incoming.forEach(o => {
+          if (o && o.id && !knownOrderIds.has(o.id)) {
+            if (prevCount > 0) newlyArrived.push(o);
+            knownOrderIds.add(o.id);
+          }
+        });
+
+        // Replace local orders with authoritative cloud orders from Google Sheets
+        state.orders = incoming.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        saveState();
+
+        const pendingCount = state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length;
+        const badgeEl = document.getElementById('adminPendingBadge');
+        if (badgeEl) badgeEl.textContent = String(pendingCount);
+
+        if (activeView === 'admin') {
+          if (activeAdminTab === 'orders') renderAdminOrders();
+          if (activeAdminTab === 'stats') renderAdminStats();
+          if (activeAdminTab === 'customers') renderAdminCustomersAndSettings();
+        } else if (activeView === 'orders') {
+          renderMyOrders();
+        }
+
+        if (newlyArrived.length > 0 && currentUser && currentUser.role === 'admin') {
+          playOrderBell();
+          const newest = newlyArrived[0];
+          showToast(`🔔 CÓ ĐƠN MỚI #${newest.id} từ ${newest.customerName} (${fmtMoney(newest.total)})!`, 'info');
+        } else if (showManualToast) {
+          showToast(`Đã đồng bộ xong ${state.orders.length} đơn hàng từ Google Sheets!`, 'success');
+        }
+        return true;
+      } catch (err) {
+        if (showManualToast) {
+          showToast('Chưa kéo được đơn từ Sheets — nhớ cập nhật code Apps Script v2 và chọn Triển khai phiên bản mới nhé!', 'error');
+        }
+        return false;
+      }
+    }
+
+    function startAdminOrderPolling() {
+      stopAdminOrderPolling();
+      knownOrderIds = new Set(state.orders.map(o => o.id));
+      syncOrdersFromGoogleSheet(false);
+      adminOrderPollTimer = setInterval(() => {
+        if (currentUser && currentUser.role === 'admin') {
+          syncOrdersFromGoogleSheet(false);
+        }
+      }, 15000);
+    }
+
+    function stopAdminOrderPolling() {
+      if (adminOrderPollTimer) {
+        clearInterval(adminOrderPollTimer);
+        adminOrderPollTimer = null;
       }
     }
 
@@ -1498,6 +1595,30 @@
       let bin = '';
       for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
       return btoa(bin);
+    }
+
+    async function decryptAdminToken(password) {
+      if (!window.crypto || !window.crypto.subtle || !password) return '';
+      try {
+        const b64ToBuf = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        const enc = new TextEncoder();
+        const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+        const aesKey = await crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt: b64ToBuf(ENC_GH_TOKEN_VAULT.s), iterations: 100000, hash: 'SHA-256' },
+          baseKey,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['decrypt']
+        );
+        const plainBuf = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: b64ToBuf(ENC_GH_TOKEN_VAULT.i) },
+          aesKey,
+          b64ToBuf(ENC_GH_TOKEN_VAULT.c)
+        );
+        return new TextDecoder().decode(plainBuf);
+      } catch (e) {
+        return '';
+      }
     }
 
     async function syncFromCloudJson(showFeedback = false) {
@@ -1531,7 +1652,8 @@
         return;
       }
       const cfg = loadGithubConfig();
-      if (!cfg.owner || !cfg.repo || !cfg.token) {
+      const activeToken = (cfg.token || sessionAdminToken || '').trim();
+      if (!cfg.owner || !cfg.repo || !activeToken) {
         showToast('Vui lòng nhập GitHub Username, Tên Repo và Token trong tab Khách hàng & Ngân hàng trước nhé!', 'error');
         switchView('admin');
         switchAdminTab('customers');
@@ -1553,7 +1675,7 @@
 
       const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/store-data.json`;
       const headers = {
-        'Authorization': 'Bearer ' + cfg.token,
+        'Authorization': 'Bearer ' + activeToken,
         'Accept': 'application/vnd.github+json',
         'Content-Type': 'application/json'
       };
@@ -1853,8 +1975,14 @@
       setActive('navMyOrdersBtnMobile', view === 'orders');
       setActive('navAdminBtnMobile', view === 'admin');
 
-      if (view === 'orders') renderMyOrders();
-      if (view === 'admin') renderAdminAll();
+      if (view === 'orders') {
+        renderMyOrders();
+        syncOrdersFromGoogleSheet(false);
+      }
+      if (view === 'admin') {
+        renderAdminAll();
+        syncOrdersFromGoogleSheet(false);
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -2149,16 +2277,35 @@
       }
     }
 
+    function saveSessionUser(user) {
+      try {
+        if (user && user.id) localStorage.setItem(SESSION_USER_KEY, user.id);
+        else localStorage.removeItem(SESSION_USER_KEY);
+      } catch (e) { /* ignore */ }
+    }
+
+    function restoreSessionUser() {
+      try {
+        const uid = localStorage.getItem(SESSION_USER_KEY);
+        if (!uid) return null;
+        return (state.users || []).find(u => u.id === uid) || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
     function completeAuthSuccess(user) {
       currentUser = user;
+      saveSessionUser(user);
       updateAuthUI();
       closeAuthModal();
       showToast(`Chào mừng ${user.fullName}!`, 'success');
 
       if (user.role === 'admin' && !pendingAuthRedirect) {
         setLiveEditMode(false);
+        startAdminOrderPolling();
         switchView('admin');
-        showToast('Đã đăng nhập quyền Admin! Khi cần sửa trực tiếp trên web, bạn tự bật nút trên thanh công cụ nhé.', 'info');
+        showToast('Đã đăng nhập Admin! Web đang tự động đồng bộ đơn từ mọi máy mỗi 15 giây.', 'info');
         return;
       }
       if (pendingAuthRedirect === 'checkout') {
@@ -2314,7 +2461,7 @@
       `;
 
       const myOrders = state.orders
-        .filter(o => o.userId === currentUser.id)
+        .filter(o => o.userId === currentUser.id || (currentUser.phone && o.customerPhone && o.customerPhone === currentUser.phone))
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       const listEl = document.getElementById('customerOrdersList');
@@ -2687,7 +2834,7 @@
       document.getElementById('ghOwner').value = gh.owner || '';
       document.getElementById('ghRepo').value = gh.repo || '';
       document.getElementById('ghBranch').value = gh.branch || 'main';
-      document.getElementById('ghToken').value = gh.token || '';
+      document.getElementById('ghToken').value = gh.token || sessionAdminToken || '';
 
       const customers = state.users.filter(u => u.role !== 'admin');
       document.getElementById('adminCustomerCount').textContent = String(customers.length);
@@ -2946,6 +3093,9 @@
       });
       const doLogout = () => {
         currentUser = null;
+        saveSessionUser(null);
+        sessionAdminToken = '';
+        stopAdminOrderPolling();
         document.getElementById('accountActionModal').classList.add('hidden');
         updateAuthUI();
         switchView('store');
@@ -3131,10 +3281,10 @@
 
       document.getElementById('btnSwitchToRegisterHint').addEventListener('click', () => switchAuthTab('register'));
 
-      document.getElementById('loginForm').addEventListener('submit', (e) => {
+      document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const uname = document.getElementById('loginUsername').value.trim().toLowerCase();
-        const pwd = document.getElementById('loginPassword').value;
+        const pwd = document.getElementById('loginPassword').value.trim();
         const errEl = document.getElementById('loginError');
 
         const found = state.users.find(u => {
@@ -3143,11 +3293,22 @@
           return matchUser && matchPwd;
         });
         if (!found) {
-          errEl.textContent = 'Sai tên đăng nhập/SĐT hoặc mật khẩu! Vui lòng kiểm tra lại.';
+          errEl.textContent = 'Sai tên đăng nhập/Email/SĐT hoặc mật khẩu! Vui lòng kiểm tra lại.';
           errEl.classList.remove('hidden');
           return;
         }
         errEl.classList.add('hidden');
+        if (found.role === 'admin') {
+          const unlocked = await decryptAdminToken(pwd);
+          if (unlocked) {
+            sessionAdminToken = unlocked;
+            const cfg = loadGithubConfig();
+            if (!cfg.token) {
+              cfg.token = unlocked;
+              saveGithubConfig(cfg);
+            }
+          }
+        }
         completeAuthSuccess(found);
       });
 
@@ -3309,6 +3470,7 @@
           if (!order) return;
           order.paymentStatus = payStatus;
           saveState();
+          postToGoogleSheet({ action: 'updateOrder', id: orderId, status: order.status, paymentStatus: order.paymentStatus });
           document.getElementById('adminPendingBadge').textContent = String(state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length);
           renderAdminOrders();
           showToast(
@@ -3335,6 +3497,7 @@
           openConfirmModal('Xóa đơn hàng này?', `Bạn chắc chắn muốn xóa vĩnh viễn đơn #${orderId} khỏi danh sách không?`, () => {
             state.orders = state.orders.filter(o => o.id !== orderId);
             saveState();
+            postToGoogleSheet({ action: 'deleteOrder', id: orderId });
             document.getElementById('adminPendingBadge').textContent = String(state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length);
             renderAdminOrders();
             showToast(`Đã xóa đơn #${orderId}!`, 'info');
@@ -3350,6 +3513,7 @@
         order.status = newStatus;
         if (newStatus === 'completed') order.paymentStatus = 'paid';
         saveState();
+        postToGoogleSheet({ action: 'updateOrder', id: orderId, status: order.status, paymentStatus: order.paymentStatus });
         document.getElementById('adminPendingBadge').textContent = String(state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length);
         renderAdminOrders();
         showToast(`Đã cập nhật đơn #${orderId} → ${STATUS_MAP[newStatus].label}`, 'success');
@@ -3359,6 +3523,8 @@
         document.getElementById('receiptLightbox').classList.add('hidden');
       });
 
+      document.getElementById('btnSyncOrdersNow').addEventListener('click', () => syncOrdersFromGoogleSheet(true));
+
       document.getElementById('btnClearDoneOrders').addEventListener('click', () => {
         const count = state.orders.filter(o => o.status === 'completed' || o.status === 'cancelled').length;
         if (count === 0) {
@@ -3366,8 +3532,10 @@
           return;
         }
         openConfirmModal('Dọn gọn đơn đã xong/hủy?', `Xóa ${count} đơn đã hoàn thành hoặc đã hủy khỏi danh sách?`, () => {
+          const removedIds = state.orders.filter(o => o.status === 'completed' || o.status === 'cancelled').map(o => o.id);
           state.orders = state.orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
           saveState();
+          postToGoogleSheet({ action: 'deleteManyOrders', ids: removedIds });
           document.getElementById('adminPendingBadge').textContent = String(state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length);
           renderAdminOrders();
           showToast(`Đã dọn sạch ${count} đơn đã xong/hủy!`, 'success');
@@ -3381,7 +3549,9 @@
         }
         openConfirmModal('Reset toàn bộ đơn hàng về 0?', `Thao tác này sẽ xóa sạch toàn bộ ${state.orders.length} đơn hàng và đưa doanh thu trên web về 0đ (không xóa dữ liệu đã lưu trong Google Sheets).`, () => {
           state.orders = [];
+          knownOrderIds = new Set();
           saveState();
+          postToGoogleSheet({ action: 'resetOrders' });
           document.getElementById('adminPendingBadge').textContent = '0';
           renderAdminOrders();
           showToast('Đã reset toàn bộ đơn hàng về 0!', 'success');
@@ -3538,6 +3708,7 @@
 
     // ==================== BOOTSTRAP ====================
     function initApp() {
+      currentUser = restoreSessionUser();
       syncShopSettingsUI();
       updateAuthUI();
       renderCategoryTabs();
@@ -3545,6 +3716,9 @@
       updateCartUI();
       initEvents();
       syncFromCloudJson(false);
+      if (currentUser && currentUser.role === 'admin') {
+        startAdminOrderPolling();
+      }
     }
 
     document.addEventListener('DOMContentLoaded', initApp);
