@@ -469,6 +469,9 @@
           <div>
             <strong>💡 Cách kiểm tra khách đã chuyển khoản thật chưa:</strong> Mở app ngân hàng kiểm tra biến động số dư khớp <strong>Số tiền</strong> + <strong>Mã nội dung CK</strong> (VD: <code>TT DH1003...</code>) và đối chiếu <strong>Ảnh biên lai</strong> khách gửi → bấm <strong>"💰 Xác nhận đã nhận tiền"</strong>.
           </div>
+          <div id="orderSyncStatusLine" class="shrink-0 px-3 py-1.5 rounded-xl bg-white border border-emerald-200 text-[11px] font-bold text-emerald-700">
+            ⏳ Đang kết nối đồng bộ đơn...
+          </div>
         </div>
 
         <!-- Compact Order Overview Bar -->
@@ -1315,6 +1318,7 @@
     let confirmCallback = null;
     let adminOrderPollTimer = null;
     let knownOrderIds = new Set();
+    let isSyncingOrders = false;
     let revenueChartInstance = null;
     let categoryChartInstance = null;
 
@@ -1501,44 +1505,72 @@
       return postToGoogleSheet({ action: 'createOrder', ...orderPayload });
     }
 
+    function setOrderSyncLine(text, isErr = false) {
+      const el = document.getElementById('orderSyncStatusLine');
+      if (!el) return;
+      el.textContent = text;
+      el.className = isErr
+        ? 'shrink-0 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-[11px] font-bold text-rose-700'
+        : 'shrink-0 px-3 py-1.5 rounded-xl bg-white border border-emerald-200 text-[11px] font-bold text-emerald-700';
+    }
+
     async function syncOrdersFromGoogleSheet(showManualToast = false) {
       const url = (state.settings && state.settings.webhookUrl ? state.settings.webhookUrl : '').trim();
-      if (!url) return false;
+      if (!url) {
+        setOrderSyncLine('⚠️ Chưa có link Google Sheets', true);
+        return false;
+      }
+      if (isSyncingOrders && !showManualToast) return false;
+      isSyncingOrders = true;
       try {
         const sep = url.includes('?') ? '&' : '?';
-        const res = await fetch(url + sep + 'action=getOrders&t=' + Date.now(), { cache: 'no-store' });
+        // IMPORTANT: No custom headers & no cache:'no-store' so Chrome keeps it a CORS Simple Request across Google Apps Script 302 redirect!
+        const res = await fetch(url + sep + 'action=getOrders&t=' + Date.now(), {
+          method: 'GET',
+          redirect: 'follow'
+        });
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
+        const text = await res.text();
+        let data = null;
+        try {
+          data = JSON.parse(text);
+        } catch (parseErr) {
+          throw new Error('Apps Script chưa bật doGet (hãy dán code v2 & Triển khai phiên bản mới)');
+        }
         if (!data || !Array.isArray(data.orders)) {
-          if (showManualToast) showToast('Apps Script chưa có hàm đọc đơn (doGet). Hãy cập nhật code Apps Script v2 nhé!', 'error');
-          return false;
+          throw new Error('Dữ liệu từ Apps Script chưa đúng định dạng v2');
         }
 
-        const prevCount = knownOrderIds.size;
+        const hadInitialLoad = knownOrderIds.size > 0;
         const incoming = data.orders;
         const newlyArrived = [];
 
         incoming.forEach(o => {
           if (o && o.id && !knownOrderIds.has(o.id)) {
-            if (prevCount > 0) newlyArrived.push(o);
+            if (hadInitialLoad) newlyArrived.push(o);
             knownOrderIds.add(o.id);
           }
         });
 
-        // Replace local orders with authoritative cloud orders from Google Sheets
+        const prevSig = JSON.stringify(state.orders.map(o => o.id + ':' + o.status + ':' + o.paymentStatus));
         state.orders = incoming.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const nextSig = JSON.stringify(state.orders.map(o => o.id + ':' + o.status + ':' + o.paymentStatus));
         saveState();
 
         const pendingCount = state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length;
         const badgeEl = document.getElementById('adminPendingBadge');
         if (badgeEl) badgeEl.textContent = String(pendingCount);
 
-        if (activeView === 'admin') {
-          if (activeAdminTab === 'orders') renderAdminOrders();
-          if (activeAdminTab === 'stats') renderAdminStats();
-          if (activeAdminTab === 'customers') renderAdminCustomersAndSettings();
-        } else if (activeView === 'orders') {
-          renderMyOrders();
+        setOrderSyncLine(`🟢 Đồng bộ 3s • ${state.orders.length} đơn (${new Date().toLocaleTimeString('vi-VN')})`);
+
+        if (prevSig !== nextSig || showManualToast) {
+          if (activeView === 'admin') {
+            if (activeAdminTab === 'orders') renderAdminOrders();
+            if (activeAdminTab === 'stats') renderAdminStats();
+            if (activeAdminTab === 'customers') renderAdminCustomersAndSettings();
+          } else if (activeView === 'orders') {
+            renderMyOrders();
+          }
         }
 
         if (newlyArrived.length > 0 && currentUser && currentUser.role === 'admin') {
@@ -1550,10 +1582,13 @@
         }
         return true;
       } catch (err) {
+        setOrderSyncLine('🔴 Chưa tải được đơn: ' + (err.message || 'Lỗi kết nối'), true);
         if (showManualToast) {
-          showToast('Chưa kéo được đơn từ Sheets — nhớ cập nhật code Apps Script v2 và chọn Triển khai phiên bản mới nhé!', 'error');
+          showToast('Lỗi tải đơn: ' + (err.message || 'Hãy kiểm tra lại Apps Script v2!'), 'error');
         }
         return false;
+      } finally {
+        isSyncingOrders = false;
       }
     }
 
@@ -1565,7 +1600,7 @@
         if (currentUser && currentUser.role === 'admin') {
           syncOrdersFromGoogleSheet(false);
         }
-      }, 15000);
+      }, 3000);
     }
 
     function stopAdminOrderPolling() {
@@ -2305,7 +2340,7 @@
         setLiveEditMode(false);
         startAdminOrderPolling();
         switchView('admin');
-        showToast('Đã đăng nhập Admin! Web đang tự động đồng bộ đơn từ mọi máy mỗi 15 giây.', 'info');
+        showToast('Đã đăng nhập Admin! Web tự động cập nhật đơn mới mỗi 3 giây.', 'info');
         return;
       }
       if (pendingAuthRedirect === 'checkout') {
