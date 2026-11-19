@@ -957,8 +957,8 @@
         <div id="bankTransferBox" class="rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 p-4 space-y-4">
           <div class="flex flex-col sm:flex-row items-center gap-4">
             <div class="bg-white p-3 rounded-2xl border border-emerald-200 shadow-sm shrink-0 text-center">
-              <div id="qrCanvasWrap" class="w-32 h-32 mx-auto flex items-center justify-center"></div>
-              <div class="text-[10px] font-extrabold text-emerald-700 mt-1.5">QUÉT MÃ VIETQR</div>
+              <div id="qrCanvasWrap" class="w-48 h-48 mx-auto flex items-center justify-center"></div>
+              <div class="text-[11px] font-extrabold text-emerald-700 mt-1.5">QUÉT MÃ QR CHUYỂN KHOẢN</div>
             </div>
             <div class="flex-1 w-full space-y-2 text-sm">
               <div class="text-xs font-extrabold text-emerald-800 uppercase">Thông tin chuyển khoản của quán</div>
@@ -1112,6 +1112,47 @@
       <div class="grid grid-cols-2 gap-3 pt-2">
         <button id="btnConfirmCancel" type="button" class="py-2.5 rounded-xl border border-stone-200 font-bold text-sm text-stone-600 hover:bg-stone-50">Hủy</button>
         <button id="btnConfirmOk" type="button" class="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm">Đồng ý</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== QR IMAGE CROPPER MODAL ==================== -->
+  <div id="qrCropModal" class="fixed inset-0 z-[65] hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+    <div class="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl flex flex-col">
+      <div class="px-5 py-3.5 border-b border-orange-100 flex items-center justify-between bg-emerald-50/70">
+        <div>
+          <h3 class="font-extrabold text-base text-cocoa">✂️ Cắt & Phóng To Mã QR</h3>
+          <p class="text-[11px] text-stone-500">Kéo ảnh & trượt thanh phóng to để lấy gọn đúng ô mã QR</p>
+        </div>
+        <button id="btnCloseQrCrop" type="button" class="w-8 h-8 rounded-full hover:bg-emerald-100 text-stone-500 font-bold">✕</button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div class="relative mx-auto w-[280px] h-[280px] rounded-2xl overflow-hidden bg-stone-900 border-4 border-emerald-500 shadow-inner select-none touch-none">
+          <canvas id="qrCropCanvas" width="280" height="280" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+          <div class="pointer-events-none absolute inset-3 border-2 border-dashed border-white/60 rounded-xl"></div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs font-bold text-stone-600">
+            <span>🔍 Phóng to / Thu nhỏ</span>
+            <span id="qrZoomLabel" class="text-emerald-700">100%</span>
+          </div>
+          <input id="qrZoomRange" type="range" min="1" max="4" step="0.05" value="1" class="w-full accent-emerald-600 cursor-pointer" />
+        </div>
+
+        <div class="flex items-center justify-between gap-2">
+          <button id="btnQrRotate" type="button" class="px-3.5 py-2 rounded-xl border border-stone-200 hover:bg-stone-100 text-xs font-bold text-stone-700">
+            🔄 Xoay 90°
+          </button>
+          <button id="btnQrResetPos" type="button" class="px-3.5 py-2 rounded-xl border border-stone-200 hover:bg-stone-100 text-xs font-bold text-stone-700">
+            ↺ Căn giữa lại
+          </button>
+        </div>
+
+        <button id="btnConfirmQrCrop" type="button" class="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md transition active:scale-95">
+          ✂️ Cắt & Lưu Mã QR Lên Web Ngay
+        </button>
       </div>
     </div>
   </div>
@@ -1816,14 +1857,38 @@
       return getBuiltInGithubToken();
     }
 
+    function dehydrateImg(src) {
+      if (!src) return '';
+      if (src === DEFAULT_BANNER_IMG) return 'preset:banner';
+      for (let i = 0; i < PRESET_IMAGES.length; i++) {
+        if (src === PRESET_IMAGES[i].src) return 'preset:' + i;
+      }
+      return src;
+    }
+
+    function hydrateImg(src) {
+      if (!src) return PRESET_IMAGES[0].src;
+      if (src === 'preset:banner') return DEFAULT_BANNER_IMG;
+      if (typeof src === 'string' && src.startsWith('preset:')) {
+        const idx = Number(src.slice(7));
+        if (!isNaN(idx) && PRESET_IMAGES[idx]) return PRESET_IMAGES[idx].src;
+      }
+      return src;
+    }
+
     let autoPushTimer = null;
-    function scheduleAutoPushStore(reasonMsg) {
+    function scheduleAutoPushStore(reasonMsg, immediate = false) {
       if (!currentUser || currentUser.role !== 'admin') return;
       if (autoPushTimer) clearTimeout(autoPushTimer);
+      if (immediate) {
+        autoPushTimer = null;
+        pushToGitHub(true, reasonMsg);
+        return;
+      }
       autoPushTimer = setTimeout(() => {
         autoPushTimer = null;
         pushToGitHub(true, reasonMsg);
-      }, 600);
+      }, 250);
     }
 
     async function syncFromCloudJson(showFeedback = false) {
@@ -1864,9 +1929,11 @@
         if (!state.settings.webhookUrl || state.settings.webhookUrl.indexOf('wimf99D') === -1) {
           state.settings.webhookUrl = DEFAULT_WEBHOOK_URL;
         }
-        if (cloud.content) state.content = { ...state.content, ...cloud.content };
-        state.products = cloud.products;
-        if (Array.isArray(cloud.revisions) && cloud.revisions.length) state.revisions = cloud.revisions;
+        if (cloud.content) {
+          state.content = { ...state.content, ...cloud.content };
+          state.content.heroBanner = hydrateImg(state.content.heroBanner);
+        }
+        state.products = cloud.products.map(p => ({ ...p, image: hydrateImg(p.image) }));
         saveState();
         syncShopSettingsUI();
         renderProducts();
@@ -1925,13 +1992,14 @@
           throw new Error(errJson.message || ('Lỗi kết nối GitHub: HTTP ' + getRes.status));
         }
 
-        // 2. Build public storefront payload (NEVER includes GitHub token or user passwords)
+        // 2. Build ultra-lightweight storefront payload (~10-40KB so sync takes < 1 second!)
+        const lightContent = { ...state.content, heroBanner: dehydrateImg(state.content.heroBanner) };
+        const lightProducts = state.products.map(p => ({ ...p, image: dehydrateImg(p.image) }));
         const payload = {
           updatedAt: new Date().toISOString(),
           settings: state.settings,
-          content: state.content,
-          products: state.products,
-          revisions: (state.revisions || []).slice(0, 10)
+          content: lightContent,
+          products: lightProducts
         };
 
         const body = {
@@ -2612,7 +2680,7 @@
       document.getElementById('chkTransferMemo').textContent = memo;
       const qrWrap = document.getElementById('qrCanvasWrap');
       if (s.bankQrImage) {
-        qrWrap.innerHTML = `<img src="${s.bankQrImage}" alt="Mã QR chuyển khoản" class="w-32 h-32 object-contain rounded-lg cursor-pointer" title="Bấm để phóng to mã QR" id="btnZoomShopQr" />`;
+        qrWrap.innerHTML = `<img src="${s.bankQrImage}" alt="Mã QR chuyển khoản" class="w-48 h-48 object-contain rounded-xl cursor-pointer" title="Bấm để phóng to mã QR" id="btnZoomShopQr" />`;
       } else {
         qrWrap.innerHTML = renderDeterministicQR(`${s.bankAccount}|${total}|${memo}`);
       }
@@ -3271,7 +3339,7 @@
       document.getElementById('inlineImageUploadInput').addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file || !inlineImageTarget) return;
-        const maxW = inlineImageTarget.type === 'hero' ? 1100 : 720;
+        const maxW = inlineImageTarget.type === 'hero' ? 900 : 540;
         compressImageFile(file, maxW, 0.78, (dataUrl) => {
           if (inlineImageTarget.type === 'hero') {
             state.content.heroBanner = dataUrl;
@@ -3849,7 +3917,7 @@
       document.getElementById('prodImageFile').addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
-        compressImageFile(file, 720, 0.78, (dataUrl) => {
+        compressImageFile(file, 540, 0.74, (dataUrl) => {
           adminEditingImage = dataUrl;
           document.getElementById('prodImagePreview').src = adminEditingImage;
           document.getElementById('prodImagePreviewWrap').classList.remove('hidden');
@@ -3887,7 +3955,7 @@
         saveState();
         renderProducts();
         resetAdminProductForm();
-        scheduleAutoPushStore('Cap nhat mon an: ' + prodData.name);
+        scheduleAutoPushStore('Cap nhat mon an: ' + prodData.name, true);
       });
 
       document.getElementById('adminProductList').addEventListener('click', (e) => {
@@ -3900,7 +3968,7 @@
             renderProducts();
             renderAdminProducts();
             showToast(p.available ? `Đã mở bán "${p.name}"` : `Đã tạm ẩn "${p.name}"`, 'info');
-            scheduleAutoPushStore('Doi trang thai mon: ' + p.name);
+            scheduleAutoPushStore('Doi trang thai mon: ' + p.name, true);
           }
           return;
         }
@@ -3933,21 +4001,146 @@
             renderProducts();
             renderAdminProducts();
             showToast(`Đã xóa "${p.name}" khỏi menu.`, 'info');
-            scheduleAutoPushStore('Xoa mon: ' + p.name);
+            scheduleAutoPushStore('Xoa mon: ' + p.name, true);
           });
         }
       });
 
       // Bank Settings Form
+      // Interactive QR Cropper State & Controls
+      let qrImgObj = null;
+      let qrScale = 1;
+      let qrBaseScale = 1;
+      let qrOffsetX = 0;
+      let qrOffsetY = 0;
+      let qrRotation = 0;
+      let qrDragging = false;
+      let qrLastX = 0;
+      let qrLastY = 0;
+
+      function drawQrCropCanvas() {
+        const canvas = document.getElementById('qrCropCanvas');
+        if (!canvas || !qrImgObj) return;
+        const ctx = canvas.getContext('2d');
+        const cw = canvas.width;
+        const ch = canvas.height;
+        ctx.clearRect(0, 0, cw, ch);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, cw, ch);
+
+        ctx.save();
+        ctx.translate(cw / 2 + qrOffsetX, ch / 2 + qrOffsetY);
+        ctx.rotate((qrRotation * Math.PI) / 180);
+        const totalScale = qrBaseScale * qrScale;
+        ctx.scale(totalScale, totalScale);
+        ctx.drawImage(qrImgObj, -qrImgObj.width / 2, -qrImgObj.height / 2);
+        ctx.restore();
+      }
+
+      function openQrCropper(dataUrl) {
+        const img = new Image();
+        img.onload = () => {
+          qrImgObj = img;
+          qrBaseScale = Math.max(280 / img.width, 280 / img.height);
+          qrScale = 1;
+          qrOffsetX = 0;
+          qrOffsetY = 0;
+          qrRotation = 0;
+          document.getElementById('qrZoomRange').value = '1';
+          document.getElementById('qrZoomLabel').textContent = '100%';
+          document.getElementById('qrCropModal').classList.remove('hidden');
+          drawQrCropCanvas();
+        };
+        img.src = dataUrl;
+      }
+
+      const qrCanvasEl = document.getElementById('qrCropCanvas');
+      const startQrDrag = (x, y) => { qrDragging = true; qrLastX = x; qrLastY = y; };
+      const moveQrDrag = (x, y) => {
+        if (!qrDragging) return;
+        qrOffsetX += (x - qrLastX);
+        qrOffsetY += (y - qrLastY);
+        qrLastX = x;
+        qrLastY = y;
+        drawQrCropCanvas();
+      };
+      const endQrDrag = () => { qrDragging = false; };
+
+      qrCanvasEl.addEventListener('mousedown', (e) => startQrDrag(e.clientX, e.clientY));
+      window.addEventListener('mousemove', (e) => moveQrDrag(e.clientX, e.clientY));
+      window.addEventListener('mouseup', endQrDrag);
+      qrCanvasEl.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches[0]) startQrDrag(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+      qrCanvasEl.addEventListener('touchmove', (e) => {
+        if (e.touches && e.touches[0]) {
+          e.preventDefault();
+          moveQrDrag(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: false });
+      qrCanvasEl.addEventListener('touchend', endQrDrag);
+
+      document.getElementById('qrZoomRange').addEventListener('input', (e) => {
+        qrScale = Number(e.target.value) || 1;
+        document.getElementById('qrZoomLabel').textContent = Math.round(qrScale * 100) + '%';
+        drawQrCropCanvas();
+      });
+
+      document.getElementById('btnQrRotate').addEventListener('click', () => {
+        qrRotation = (qrRotation + 90) % 360;
+        drawQrCropCanvas();
+      });
+
+      document.getElementById('btnQrResetPos').addEventListener('click', () => {
+        qrScale = 1;
+        qrOffsetX = 0;
+        qrOffsetY = 0;
+        qrRotation = 0;
+        document.getElementById('qrZoomRange').value = '1';
+        document.getElementById('qrZoomLabel').textContent = '100%';
+        drawQrCropCanvas();
+      });
+
+      document.getElementById('btnCloseQrCrop').addEventListener('click', () => {
+        document.getElementById('qrCropModal').classList.add('hidden');
+      });
+
+      document.getElementById('btnConfirmQrCrop').addEventListener('click', () => {
+        if (!qrImgObj) return;
+        const outCanvas = document.createElement('canvas');
+        const outSize = 440;
+        outCanvas.width = outSize;
+        outCanvas.height = outSize;
+        const ctx = outCanvas.getContext('2d');
+        const ratio = outSize / 280;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, outSize, outSize);
+        ctx.save();
+        ctx.translate(outSize / 2 + qrOffsetX * ratio, outSize / 2 + qrOffsetY * ratio);
+        ctx.rotate((qrRotation * Math.PI) / 180);
+        const totalScale = qrBaseScale * qrScale * ratio;
+        ctx.scale(totalScale, totalScale);
+        ctx.drawImage(qrImgObj, -qrImgObj.width / 2, -qrImgObj.height / 2);
+        ctx.restore();
+
+        const croppedDataUrl = outCanvas.toDataURL('image/jpeg', 0.86);
+        adminEditingBankQr = croppedDataUrl;
+        state.settings.bankQrImage = croppedDataUrl;
+        saveState();
+        document.getElementById('setBankQrPreview').src = croppedDataUrl;
+        document.getElementById('setBankQrPreviewWrap').classList.remove('hidden');
+        document.getElementById('qrCropModal').classList.add('hidden');
+        showToast('✂️ Đã cắt mã QR sắc nét! Đang đồng bộ ngay lên web...', 'success');
+        scheduleAutoPushStore('Cap nhat anh ma QR chuyen khoan', true);
+      });
+
       document.getElementById('setBankQrFile').addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
-        compressImageFile(file, 640, 0.86, (dataUrl) => {
-          adminEditingBankQr = dataUrl;
-          document.getElementById('setBankQrPreview').src = dataUrl;
-          document.getElementById('setBankQrPreviewWrap').classList.remove('hidden');
-          showToast('Đã nạp ảnh mã QR! Bấm "Lưu cài đặt cửa hàng" để áp dụng.', 'info');
-        });
+        const reader = new FileReader();
+        reader.onload = () => openQrCropper(reader.result);
+        reader.readAsDataURL(file);
+        e.target.value = '';
       });
 
       document.getElementById('btnRemoveBankQr').addEventListener('click', () => {
@@ -3980,7 +4173,7 @@
         saveState();
         syncShopSettingsUI();
         showToast('Đã lưu cài đặt tiệm, số TK & ảnh mã QR! Đang tự động đồng bộ cho mọi máy...', 'success');
-        scheduleAutoPushStore('Cap nhat ngan hang & ma QR quan');
+        scheduleAutoPushStore('Cap nhat ngan hang & ma QR quan', true);
       });
 
       document.getElementById('btnTestWebhook').addEventListener('click', async () => {
@@ -4032,6 +4225,12 @@
       if (currentUser && currentUser.role === 'admin') {
         startAdminOrderPolling();
       }
+      // Keep storefront menu & QR synced live on customer devices every 8 seconds
+      setInterval(() => {
+        if (!isLiveEditMode && activeView === 'store') {
+          syncFromCloudJson(false);
+        }
+      }, 8000);
     }
 
     document.addEventListener('DOMContentLoaded', initApp);
