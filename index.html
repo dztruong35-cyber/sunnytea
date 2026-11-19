@@ -471,9 +471,22 @@
           </div>
         </div>
 
+        <!-- Compact Order Overview Bar -->
+        <div id="adminOrderSummaryBar" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <!-- Rendered by JS -->
+        </div>
+
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div id="adminOrderFilters" class="flex flex-wrap items-center gap-2">
             <!-- Rendered by JS -->
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="btnClearDoneOrders" type="button" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold transition">
+              🧹 Xóa đơn đã xong/hủy
+            </button>
+            <button id="btnResetAllOrders" type="button" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition">
+              🔄 Reset toàn bộ đơn
+            </button>
           </div>
         </div>
         <div id="adminOrdersList" class="space-y-4">
@@ -640,6 +653,16 @@
               </div>
             </form>
           </div>
+
+          <!-- Change Admin Password Card -->
+          <div class="bg-white rounded-3xl p-5 sm:p-6 border border-rose-200 shadow-sm mt-6">
+            <h3 class="font-extrabold text-base text-cocoa mb-1">🔐 Đổi mật khẩu Admin</h3>
+            <p class="text-xs text-stone-500 mb-3">Nên đổi mật khẩu khỏi mặc định để người ngoài không vào được trang quản trị.</p>
+            <form id="adminPassForm" class="flex flex-col sm:flex-row gap-2">
+              <input id="newAdminPassword" type="password" required minlength="6" placeholder="Nhập mật khẩu Admin mới (≥ 6 ký tự)" class="flex-1 px-3.5 py-2 rounded-xl border border-rose-200 text-xs focus:outline-none focus:ring-2 focus:ring-rose-400" />
+              <button type="submit" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shrink-0">Đổi mật khẩu</button>
+            </form>
+          </div>
         </div>
 
         <!-- Registered Customers Table -->
@@ -787,8 +810,8 @@
             Vui lòng đăng nhập hoặc đăng ký tài khoản để tiếp tục đặt hàng!
           </div>
           <div>
-            <label class="block text-xs font-bold text-stone-600 mb-1">Tên đăng nhập hoặc SĐT</label>
-            <input id="loginUsername" type="text" required placeholder="Nhập tên đăng nhập..." class="w-full px-3.5 py-2.5 rounded-xl border border-orange-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            <label class="block text-xs font-bold text-stone-600 mb-1">Tên đăng nhập, Email hoặc SĐT</label>
+            <input id="loginUsername" type="text" required placeholder="Nhập email, tên đăng nhập hoặc SĐT..." class="w-full px-3.5 py-2.5 rounded-xl border border-orange-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
           </div>
           <div>
             <label class="block text-xs font-bold text-stone-600 mb-1">Mật khẩu</label>
@@ -1114,7 +1137,7 @@
       ]
     };
 
-    const STORAGE_KEY = 'tiem_tra_sua_an_vat_v2';
+    const STORAGE_KEY = 'tiem_tra_sua_an_vat_v3';
     const GH_ADMIN_CONFIG_KEY = 'tiem_tra_sua_gh_admin_cfg_v1';
     const DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwAfrAkSCfg5vaU20zaczMkkmzChs_79TNXbrW12FuYctZOc0MpSiWoUx2N-b4FMISD/exec';
 
@@ -1228,98 +1251,17 @@
         users: [
           {
             id: 'u_admin',
-            username: 'admin',
-            password: 'admin123',
+            username: 'dztruong35@gmail.com',
+            passwordHash: '0854e4a36585e0f5',
             role: 'admin',
             fullName: 'Chủ Tiệm (Admin)',
-            phone: '0900000001',
+            phone: '0787818633',
             dob: '1998-05-15',
             address: 'Tại quán'
           },
-          {
-            id: 'u_demo1',
-            username: 'khach1',
-            password: '123456',
-            role: 'customer',
-            fullName: 'Nguyễn Minh Thư',
-            phone: '0912345678',
-            dob: '2002-08-20',
-            address: '45 Đường Mậu Thân, Ninh Kiều, Cần Thơ'
-          },
-          {
-            id: 'u_demo2',
-            username: 'hoangnam',
-            password: '123456',
-            role: 'customer',
-            fullName: 'Trần Hoàng Nam',
-            phone: '0939887766',
-            dob: '2000-11-12',
-            address: '12 Đường Trần Hưng Đạo, Ninh Kiều, Cần Thơ'
-          }
         ],
         products,
-        orders: [
-          {
-            id: 'DH1001',
-            userId: 'u_demo1',
-            customerName: 'Nguyễn Minh Thư',
-            customerPhone: '0912345678',
-            customerDob: '2002-08-20',
-            receiveType: 'delivery',
-            address: '45 Đường Mậu Thân, Ninh Kiều, Cần Thơ',
-            paymentMethod: 'bank_transfer',
-            transferMemo: 'TT DH1001 0912345678',
-            paymentStatus: 'paid',
-            status: 'completed',
-            createdAt: fmtDay(2) + 'T14:25:00',
-            receiptImage: '',
-            items: [
-              { productId: 'p1', name: 'Trà Sữa Trân Châu Đường Đen Kem Cheese', category: 'Trà sữa', size: 'Size L (+6k)', toppings: ['Trân châu đường đen'], note: 'Ít đá', qty: 2, unitPrice: 48000 },
-              { productId: 'p2', name: 'Bánh Tráng Trộn Sài Gòn Full Topping', category: 'Bánh tráng', size: 'Phần thường', toppings: ['Thêm 3 trứng cút'], note: 'Cay vừa', qty: 1, unitPrice: 36000 }
-            ],
-            total: 132000
-          },
-          {
-            id: 'DH1002',
-            userId: 'u_demo2',
-            customerName: 'Trần Hoàng Nam',
-            customerPhone: '0939887766',
-            customerDob: '2000-11-12',
-            receiveType: 'pickup',
-            address: 'Qua quán nhận trực tiếp',
-            paymentMethod: 'cod',
-            transferMemo: '',
-            paymentStatus: 'unpaid',
-            status: 'preparing',
-            createdAt: fmtDay(1) + 'T17:10:00',
-            receiptImage: '',
-            items: [
-              { productId: 'p3', name: 'Mì Cay Hải Sản Bò Mỹ 7 Cấp Độ', category: 'Mì cay & Mì trộn', size: 'Phần đặc biệt (+6k)', toppings: ['Trứng lòng đào'], note: 'Cấp độ 2', qty: 1, unitPrice: 69000 },
-              { productId: 'p4', name: 'Trà Đào Cam Sả Giải Nhiệt', category: 'Trà trái cây', size: 'Size M', toppings: [], note: '', qty: 2, unitPrice: 32000 }
-            ],
-            total: 133000
-          },
-          {
-            id: 'DH1003',
-            userId: 'u_demo1',
-            customerName: 'Nguyễn Minh Thư',
-            customerPhone: '0912345678',
-            customerDob: '2002-08-20',
-            receiveType: 'delivery',
-            address: '45 Đường Mậu Thân, Ninh Kiều, Cần Thơ',
-            paymentMethod: 'bank_transfer',
-            transferMemo: 'TT DH1003 0912345678',
-            paymentStatus: 'checking',
-            status: 'pending',
-            createdAt: fmtDay(0) + 'T11:40:00',
-            receiptImage: '',
-            items: [
-              { productId: 'p5', name: 'Cá Viên Chiên Nước Mắm Tỏi Ớt', category: 'Đồ ăn vặt', size: 'Phần thường', toppings: ['Thêm sốt mắm tỏi ớt'], note: 'Nhiều tỏi phi', qty: 1, unitPrice: 43000 },
-              { productId: 'p1', name: 'Trà Sữa Trân Châu Đường Đen Kem Cheese', category: 'Trà sữa', size: 'Size M', toppings: [], note: '50% đường', qty: 1, unitPrice: 35000 }
-            ],
-            total: 78000
-          }
-        ],
+        orders: [],
         revisions: [
           {
             id: 'rev_init',
@@ -1372,6 +1314,13 @@
             if (!parsed.content) parsed.content = getDefaultContent();
             if (!Array.isArray(parsed.revisions)) parsed.revisions = [];
             if (!parsed.settings.webhookUrl || parsed.settings.webhookUrl.indexOf('MpSlWo') > -1) parsed.settings.webhookUrl = DEFAULT_WEBHOOK_URL;
+            const adm = (parsed.users || []).find(u => u.id === 'u_admin');
+            if (adm && adm.username === 'admin') {
+              adm.username = 'dztruong35@gmail.com';
+              adm.phone = '0787818633';
+              delete adm.password;
+              adm.passwordHash = '0854e4a36585e0f5';
+            }
             return parsed;
           }
         }
@@ -1401,6 +1350,20 @@
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+    }
+
+    function hashPassword(pwd) {
+      const text = 'sunnytea_salt_2026::' + String(pwd || '');
+      let h1 = 0xdeadbeef >>> 0;
+      let h2 = 0x41c6ce57 >>> 0;
+      for (let i = 0; i < text.length; i++) {
+        const c = text.charCodeAt(i);
+        h1 = Math.imul(h1 ^ c, 2654435761) >>> 0;
+        h2 = Math.imul(h2 ^ c, 1597334677) >>> 0;
+      }
+      h1 = (Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)) >>> 0;
+      h2 = (Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)) >>> 0;
+      return h2.toString(16).padStart(8, '0') + h1.toString(16).padStart(8, '0');
     }
 
     function playPopSound(freqStart = 520, freqEnd = 880) {
@@ -1521,7 +1484,7 @@
         const raw = localStorage.getItem(GH_ADMIN_CONFIG_KEY);
         if (raw) return JSON.parse(raw);
       } catch (e) { /* ignore */ }
-      return { owner: '', repo: '', branch: 'main', token: '' };
+      return { owner: 'dztruong35-cyber', repo: 'sunnytea', branch: 'main', token: '' };
     }
 
     function saveGithubConfig(cfg) {
@@ -2536,6 +2499,33 @@
     }
 
     function renderAdminOrders() {
+      // Summary overview strip
+      const cPending = state.orders.filter(o => o.status === 'pending').length;
+      const cChecking = state.orders.filter(o => o.paymentMethod === 'bank_transfer' && o.paymentStatus === 'checking').length;
+      const cPrep = state.orders.filter(o => o.status === 'preparing').length;
+      const cDone = state.orders.filter(o => o.status === 'completed').length;
+      const sumBar = document.getElementById('adminOrderSummaryBar');
+      if (sumBar) {
+        sumBar.innerHTML = `
+          <div class="bg-white rounded-2xl p-3.5 border border-orange-100 flex items-center justify-between">
+            <span class="text-xs font-bold text-stone-500">⏳ Chờ xác nhận</span>
+            <span class="text-lg font-black text-amber-600">${cPending}</span>
+          </div>
+          <div class="bg-white rounded-2xl p-3.5 border border-orange-100 flex items-center justify-between">
+            <span class="text-xs font-bold text-stone-500">🔍 Chờ duyệt CK</span>
+            <span class="text-lg font-black text-rose-600">${cChecking}</span>
+          </div>
+          <div class="bg-white rounded-2xl p-3.5 border border-orange-100 flex items-center justify-between">
+            <span class="text-xs font-bold text-stone-500">🍳 Đang làm</span>
+            <span class="text-lg font-black text-sky-600">${cPrep}</span>
+          </div>
+          <div class="bg-white rounded-2xl p-3.5 border border-orange-100 flex items-center justify-between">
+            <span class="text-xs font-bold text-stone-500">✅ Hoàn thành</span>
+            <span class="text-lg font-black text-emerald-600">${cDone}</span>
+          </div>
+        `;
+      }
+
       const filters = [
         { id: 'all', label: 'Tất cả' },
         { id: 'checking_bank', label: '🔍 Chờ đối soát CK' },
@@ -2627,6 +2617,7 @@
                     ${o.status === 'pending' ? `<button type="button" data-set-order-status="${o.id}|preparing" class="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold">🍳 Nhận làm đơn</button>` : ''}
                     ${o.status === 'preparing' ? `<button type="button" data-set-order-status="${o.id}|completed" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">✅ Hoàn thành đơn</button>` : ''}
                     ${o.status !== 'completed' && o.status !== 'cancelled' ? `<button type="button" data-set-order-status="${o.id}|cancelled" class="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold">Hủy đơn</button>` : ''}
+                    <button type="button" data-del-order="${o.id}" class="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-rose-600 hover:text-white text-stone-600 text-xs font-bold transition">🗑️ Xóa</button>
                   </div>
                 </div>
               </div>
@@ -2701,7 +2692,9 @@
       const customers = state.users.filter(u => u.role !== 'admin');
       document.getElementById('adminCustomerCount').textContent = String(customers.length);
 
-      document.getElementById('adminCustomerTable').innerHTML = customers.map(c => {
+      document.getElementById('adminCustomerTable').innerHTML = customers.length === 0
+        ? '<tr><td colspan="4" class="py-8 text-center text-xs text-stone-400">Chưa có khách hàng nào đăng ký.</td></tr>'
+        : customers.map(c => {
         const custOrders = state.orders.filter(o => o.userId === c.id && o.status !== 'cancelled');
         const spent = custOrders.reduce((sum, o) => sum + o.total, 0);
         return `
@@ -2767,6 +2760,22 @@
         pushToGitHub();
       });
       document.getElementById('btnPullFromGithub').addEventListener('click', () => syncFromCloudJson(true));
+      document.getElementById('adminPassForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const newPwd = document.getElementById('newAdminPassword').value.trim();
+        if (newPwd.length < 6) {
+          showToast('Mật khẩu mới cần ít nhất 6 ký tự!', 'error');
+          return;
+        }
+        const adminUser = state.users.find(u => u.role === 'admin');
+        if (adminUser) {
+          delete adminUser.password;
+          adminUser.passwordHash = hashPassword(newPwd);
+          saveState();
+          document.getElementById('newAdminPassword').value = '';
+          showToast('Đã đổi mật khẩu Admin thành công! Hãy nhớ mật khẩu mới nhé.', 'success');
+        }
+      });
       document.getElementById('btnAdminNewSnapshot').addEventListener('click', openSaveRevModal);
       document.getElementById('btnCloseSaveRev').addEventListener('click', () => document.getElementById('saveRevisionModal').classList.add('hidden'));
       document.getElementById('btnCancelSaveRev').addEventListener('click', () => document.getElementById('saveRevisionModal').classList.add('hidden'));
@@ -3128,9 +3137,11 @@
         const pwd = document.getElementById('loginPassword').value;
         const errEl = document.getElementById('loginError');
 
-        const found = state.users.find(u =>
-          (u.username.toLowerCase() === uname || u.phone === uname) && u.password === pwd
-        );
+        const found = state.users.find(u => {
+          const matchUser = u.username.toLowerCase() === uname || u.phone === uname;
+          const matchPwd = u.passwordHash ? (hashPassword(pwd) === u.passwordHash) : (u.password === pwd);
+          return matchUser && matchPwd;
+        });
         if (!found) {
           errEl.textContent = 'Sai tên đăng nhập/SĐT hoặc mật khẩu! Vui lòng kiểm tra lại.';
           errEl.classList.remove('hidden');
@@ -3318,6 +3329,19 @@
           return;
         }
 
+        const delOrderBtn = e.target.closest('[data-del-order]');
+        if (delOrderBtn) {
+          const orderId = delOrderBtn.dataset.delOrder;
+          openConfirmModal('Xóa đơn hàng này?', `Bạn chắc chắn muốn xóa vĩnh viễn đơn #${orderId} khỏi danh sách không?`, () => {
+            state.orders = state.orders.filter(o => o.id !== orderId);
+            saveState();
+            document.getElementById('adminPendingBadge').textContent = String(state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length);
+            renderAdminOrders();
+            showToast(`Đã xóa đơn #${orderId}!`, 'info');
+          });
+          return;
+        }
+
         const btn = e.target.closest('[data-set-order-status]');
         if (!btn) return;
         const [orderId, newStatus] = btn.dataset.setOrderStatus.split('|');
@@ -3333,6 +3357,35 @@
 
       document.getElementById('btnCloseLightbox').addEventListener('click', () => {
         document.getElementById('receiptLightbox').classList.add('hidden');
+      });
+
+      document.getElementById('btnClearDoneOrders').addEventListener('click', () => {
+        const count = state.orders.filter(o => o.status === 'completed' || o.status === 'cancelled').length;
+        if (count === 0) {
+          showToast('Không có đơn hoàn thành hay đã hủy nào để xóa!', 'info');
+          return;
+        }
+        openConfirmModal('Dọn gọn đơn đã xong/hủy?', `Xóa ${count} đơn đã hoàn thành hoặc đã hủy khỏi danh sách?`, () => {
+          state.orders = state.orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+          saveState();
+          document.getElementById('adminPendingBadge').textContent = String(state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length);
+          renderAdminOrders();
+          showToast(`Đã dọn sạch ${count} đơn đã xong/hủy!`, 'success');
+        });
+      });
+
+      document.getElementById('btnResetAllOrders').addEventListener('click', () => {
+        if (state.orders.length === 0) {
+          showToast('Danh sách đơn hàng hiện đang trống sẵn rồi!', 'info');
+          return;
+        }
+        openConfirmModal('Reset toàn bộ đơn hàng về 0?', `Thao tác này sẽ xóa sạch toàn bộ ${state.orders.length} đơn hàng và đưa doanh thu trên web về 0đ (không xóa dữ liệu đã lưu trong Google Sheets).`, () => {
+          state.orders = [];
+          saveState();
+          document.getElementById('adminPendingBadge').textContent = '0';
+          renderAdminOrders();
+          showToast('Đã reset toàn bộ đơn hàng về 0!', 'success');
+        });
       });
 
       // Admin Product Form & Image Picker
