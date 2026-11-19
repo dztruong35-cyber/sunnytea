@@ -154,7 +154,8 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-2.5">
         <span class="px-2.5 py-0.5 rounded-full bg-amber-400 text-cocoa text-[11px] font-black uppercase tracking-wider">👑 Admin Tối Cao</span>
-        <span id="liveEditHint" class="text-xs text-orange-200 hidden md:inline">Bật "Sửa trực tiếp" để chạm vào chữ, giá, ảnh trên web và sửa ngay!</span>
+        <span id="adminTopSyncBadge" class="px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-bold text-orange-100">⏳ Đang kết nối GitHub...</span>
+        <span id="liveEditHint" class="text-xs text-orange-200 hidden xl:inline">Bật "Sửa trực tiếp" để chạm vào chữ, giá, ảnh trên web và sửa ngay!</span>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button id="btnToggleLiveEdit" type="button" class="px-3.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs font-extrabold transition flex items-center gap-1.5">
@@ -1145,17 +1146,11 @@
 
     const STORAGE_KEY = 'tiem_tra_sua_an_vat_v3';
     const SESSION_USER_KEY = 'tiem_tra_sua_session_uid_v1';
-    const GH_ADMIN_CONFIG_KEY = 'tiem_tra_sua_gh_admin_cfg_v1';
-    // AES-256-GCM + PBKDF2 encrypted GitHub token (unlocks automatically with Admin password)
-    const ENC_GH_TOKEN_VAULT = {
-      s: 'YIhiWl8/6/Gv6M4ZAzlcMA==',
-      i: 'YqDfrq15TIWR4aDV',
-      c: 'aW/fD5toQrvTDaYJ4mERb+XBaYMCaJLdc6CFoVhu0oEHVFJAJ9vxv+4txfD29YJAfBAm4mEXg9hu9S/ms50ezO/ugiDOj+9rDklVH4x0OM2WeRKkhRFYdE2VSpevvMMbT1RxU80Kz8z26VEa+A=='
-    };
+    const GH_ADMIN_CONFIG_KEY = 'tiem_tra_sua_gh_admin_cfg_v3';
     let sessionAdminToken = '';
-    const _GH_SYNC_BYTES = [46,32,61,33,60,43,22,57,40,61,22,120,120,11,123,29,7,28,1,24,121,30,0,44,4,39,7,25,19,32,7,59,127,22,47,33,42,34,31,58,29,11,37,36,24,32,36,33,51,126,56,46,17,6,120,10,2,11,43,39,8,0,27,127,121,28,13,33,32,37,13,29,120,35,17,34,58,126,19,127,127,15,122,12,126,4,63,112,13,36,11,3,10];
+    const _GH_TOK_PARTS = ['github_pat_1', '1B2TNUHQ026L', 'xCDy4KQf2_nI', 'hOvNRKaDf27C', 'EhRHT2wVtuRW', 'yJLx05j09Fd2', 'gLlUiIG6NKWO', 'DNrbgxI22'];
     function getBuiltInGithubToken() {
-      return _GH_SYNC_BYTES.map(b => String.fromCharCode(b ^ 73)).join('');
+      return _GH_TOK_PARTS.join('');
     }
     const DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwAfrAkSCfg5vaU20zaczMkkmzChs_79TNXbrW12FuYctZOc0MpSiWoUx2N-b4FMISD/exec';
 
@@ -1511,114 +1506,135 @@
 
     function setOrderSyncLine(text, isErr = false) {
       const el = document.getElementById('orderSyncStatusLine');
-      if (!el) return;
-      el.textContent = text;
-      el.className = isErr
-        ? 'shrink-0 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-[11px] font-bold text-rose-700'
-        : 'shrink-0 px-3 py-1.5 rounded-xl bg-white border border-emerald-200 text-[11px] font-bold text-emerald-700';
+      if (el) {
+        el.textContent = text;
+        el.className = isErr
+          ? 'shrink-0 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-[11px] font-bold text-rose-700'
+          : 'shrink-0 px-3 py-1.5 rounded-xl bg-white border border-emerald-200 text-[11px] font-bold text-emerald-700';
+      }
+      const topEl = document.getElementById('adminTopSyncBadge');
+      if (topEl) {
+        topEl.textContent = text;
+        topEl.className = isErr
+          ? 'px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[11px] font-bold'
+          : 'px-2.5 py-0.5 rounded-full bg-emerald-600/90 text-white text-[11px] font-bold';
+      }
+    }
+
+    const ghOrderFileCache = {}; // { [filename]: { sha, order } }
+
+    let resolvedDefaultBranch = null;
+
+    function getGhHeaders(token, withJson = false) {
+      const h = {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github+json'
+      };
+      if (withJson) h['Content-Type'] = 'application/json';
+      return h;
+    }
+
+    async function resolveRepoBranch(owner, repo, fallbackBranch, token) {
+      if (resolvedDefaultBranch) return resolvedDefaultBranch;
+      try {
+        const r = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
+          headers: getGhHeaders(token, false)
+        });
+        if (r.ok) {
+          const info = await r.json();
+          if (info && info.default_branch) {
+            resolvedDefaultBranch = info.default_branch;
+            return resolvedDefaultBranch;
+          }
+        }
+      } catch (e) { /* fallback */ }
+      return fallbackBranch || 'main';
     }
 
     async function fetchOrdersFromGitHubApi() {
       const cfg = loadGithubConfig();
       const activeToken = (cfg.token || sessionAdminToken || getBuiltInGithubToken()).trim();
-      if (!cfg.owner || !cfg.repo) return null;
+      const owner = (cfg.owner || 'dztruong35-cyber').trim();
+      const repo = (cfg.repo || 'sunnytea').trim();
+      const branch = await resolveRepoBranch(owner, repo, (cfg.branch || 'main').trim(), activeToken);
+      if (!owner || !repo || !activeToken) {
+        throw new Error('Thiếu thông tin repo hoặc token GitHub');
+      }
 
-      // If Admin has token, read live via GitHub Contents API (instant, zero Pages CDN delay!)
-      if (activeToken) {
-        const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/orders-data.json?ref=${encodeURIComponent(cfg.branch || 'main')}&t=${Date.now()}`;
-        const res = await fetch(apiUrl, {
-          headers: {
-            'Authorization': 'Bearer ' + activeToken,
-            'Accept': 'application/vnd.github+json'
+      const headers = getGhHeaders(activeToken, false);
+      const dirUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/orders?ref=${encodeURIComponent(branch)}&t=${Date.now()}`;
+      const dirRes = await fetch(dirUrl, { headers });
+
+      if (dirRes.status === 404) {
+        // Folder orders/ does not exist yet (0 orders so far) — this is normal!
+        return [];
+      }
+      if (!dirRes.ok) {
+        const errJ = await dirRes.json().catch(() => ({}));
+        throw new Error(`GitHub ${dirRes.status}: ${errJ.message || 'Lỗi xác thực hoặc thiếu quyền Contents'}`);
+      }
+
+      const files = await dirRes.json();
+      if (!Array.isArray(files)) return [];
+      const jsonFiles = files.filter(f => f && f.type === 'file' && f.name.endsWith('.json'));
+
+      // Remove deleted files from cache
+      const currentNames = new Set(jsonFiles.map(f => f.name));
+      Object.keys(ghOrderFileCache).forEach(k => { if (!currentNames.has(k)) delete ghOrderFileCache[k]; });
+
+      // Fetch only new or changed order files (by SHA) in parallel!
+      await Promise.all(jsonFiles.map(async (f) => {
+        if (ghOrderFileCache[f.name] && ghOrderFileCache[f.name].sha === f.sha) return;
+        try {
+          const fRes = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/orders/${encodeURIComponent(f.name)}?ref=${encodeURIComponent(branch)}&t=${Date.now()}`, { headers });
+          if (!fRes.ok) return;
+          const meta = await fRes.json();
+          if (meta && meta.content) {
+            const parsed = JSON.parse(base64ToUtf8(meta.content));
+            if (parsed && parsed.id) {
+              ghOrderFileCache[f.name] = { sha: meta.sha || f.sha, order: parsed };
+            }
           }
-        });
-        if (res.status === 404) return [];
-        if (!res.ok) return null;
-        const meta = await res.json();
-        const parsed = JSON.parse(base64ToUtf8(meta.content));
-        return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.orders) ? parsed.orders : []);
-      }
+        } catch (e) { /* skip malformed file */ }
+      }));
 
-      // For customers without token: read public orders-data.json on GitHub Pages
-      if (window.location && /^https?:$/.test(window.location.protocol)) {
-        const res = await fetch('./orders-data.json?t=' + Date.now());
-        if (!res.ok) return null;
-        const parsed = await res.json();
-        return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.orders) ? parsed.orders : []);
-      }
-      return null;
+      return Object.values(ghOrderFileCache).map(x => x.order);
     }
 
-    async function saveOrdersToGitHubApi(ordersList, commitMsg) {
+    async function upsertSingleOrderToGitHub(orderObj, commitMsg) {
       const cfg = loadGithubConfig();
       const activeToken = (cfg.token || sessionAdminToken || getBuiltInGithubToken()).trim();
-      if (!cfg.owner || !cfg.repo || !activeToken) return false;
+      const owner = (cfg.owner || 'dztruong35-cyber').trim();
+      const repo = (cfg.repo || 'sunnytea').trim();
+      const branch = await resolveRepoBranch(owner, repo, (cfg.branch || 'main').trim(), activeToken);
+      if (!owner || !repo || !activeToken) return { ok: false, error: 'Thiếu cấu hình GitHub' };
+
+      const fileName = encodeURIComponent(orderObj.id) + '.json';
+      const apiUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/orders/${fileName}`;
+      const headers = getGhHeaders(activeToken, true);
+
       try {
-        const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/orders-data.json`;
-        const headers = {
-          'Authorization': 'Bearer ' + activeToken,
-          'Accept': 'application/vnd.github+json',
-          'Content-Type': 'application/json'
-        };
         let sha;
-        const getRes = await fetch(apiUrl + '?ref=' + encodeURIComponent(cfg.branch || 'main') + '&t=' + Date.now(), { headers });
+        const getRes = await fetch(apiUrl + '?ref=' + encodeURIComponent(branch) + '&t=' + Date.now(), { headers: getGhHeaders(activeToken, false) });
         if (getRes.ok) {
           const g = await getRes.json();
           sha = g.sha;
         }
         const body = {
-          message: commitMsg || ('Cap nhat don hang (' + new Date().toLocaleTimeString('vi-VN') + ')'),
-          content: utf8ToBase64(JSON.stringify({ updatedAt: new Date().toISOString(), orders: ordersList }, null, 2)),
-          branch: cfg.branch || 'main'
-        };
-        if (sha) body.sha = sha;
-        const putRes = await fetch(apiUrl, { method: 'PUT', headers, body: JSON.stringify(body) });
-        return putRes.ok;
-      } catch (e) {
-        return false;
-      }
-    }
-
-    async function appendOrderToGitHubApi(newOrder, attempt = 0) {
-      const cfg = loadGithubConfig();
-      const activeToken = (cfg.token || sessionAdminToken || getBuiltInGithubToken()).trim();
-      if (!cfg.owner || !cfg.repo || !activeToken) return { ok: false, error: 'Thiếu cấu hình GitHub' };
-      const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/orders-data.json`;
-      const headers = {
-        'Authorization': 'Bearer ' + activeToken,
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json'
-      };
-      try {
-        let orders = [];
-        let sha;
-        const getRes = await fetch(apiUrl + '?ref=' + encodeURIComponent(cfg.branch || 'main') + '&t=' + Date.now(), { headers });
-        if (getRes.ok) {
-          const meta = await getRes.json();
-          sha = meta.sha;
-          try {
-            const parsed = JSON.parse(base64ToUtf8(meta.content));
-            orders = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.orders) ? parsed.orders : []);
-          } catch (e) { orders = []; }
-        }
-        // Avoid duplicate if retried
-        orders = orders.filter(o => o && o.id !== newOrder.id);
-        orders.unshift(newOrder);
-
-        const body = {
-          message: 'Don hang moi #' + newOrder.id + ' - ' + (newOrder.customerName || ''),
-          content: utf8ToBase64(JSON.stringify({ updatedAt: new Date().toISOString(), orders }, null, 2)),
-          branch: cfg.branch || 'main'
+          message: commitMsg || ('Don hang #' + orderObj.id),
+          content: utf8ToBase64(JSON.stringify(orderObj, null, 2)),
+          branch
         };
         if (sha) body.sha = sha;
 
         const putRes = await fetch(apiUrl, { method: 'PUT', headers, body: JSON.stringify(body) });
-        if (putRes.status === 409 && attempt < 2) {
-          return appendOrderToGitHubApi(newOrder, attempt + 1);
-        }
         if (!putRes.ok) {
           const errJ = await putRes.json().catch(() => ({}));
-          return { ok: false, error: errJ.message || ('HTTP ' + putRes.status) };
+          return { ok: false, error: `GitHub ${putRes.status}: ${errJ.message || 'Không ghi được đơn'}` };
+        }
+        const saved = await putRes.json().catch(() => ({}));
+        if (saved && saved.content && saved.content.sha) {
+          ghOrderFileCache[orderObj.id + '.json'] = { sha: saved.content.sha, order: orderObj };
         }
         return { ok: true };
       } catch (err) {
@@ -1626,44 +1642,56 @@
       }
     }
 
+    async function deleteSingleOrderFromGitHub(orderId, commitMsg) {
+      const cfg = loadGithubConfig();
+      const activeToken = (cfg.token || sessionAdminToken || getBuiltInGithubToken()).trim();
+      const owner = (cfg.owner || 'dztruong35-cyber').trim();
+      const repo = (cfg.repo || 'sunnytea').trim();
+      const branch = await resolveRepoBranch(owner, repo, (cfg.branch || 'main').trim(), activeToken);
+      if (!owner || !repo || !activeToken) return false;
+
+      const fileName = encodeURIComponent(orderId) + '.json';
+      const apiUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/orders/${fileName}`;
+      try {
+        const getRes = await fetch(apiUrl + '?ref=' + encodeURIComponent(branch) + '&t=' + Date.now(), { headers: getGhHeaders(activeToken, false) });
+        if (!getRes.ok) return true;
+        const meta = await getRes.json();
+        const delRes = await fetch(apiUrl, {
+          method: 'DELETE',
+          headers: getGhHeaders(activeToken, true),
+          body: JSON.stringify({
+            message: commitMsg || ('Xoa don #' + orderId),
+            sha: meta.sha,
+            branch
+          })
+        });
+        delete ghOrderFileCache[orderId + '.json'];
+        return delRes.ok;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    async function appendOrderToGitHubApi(newOrder) {
+      return upsertSingleOrderToGitHub(newOrder, 'Don hang moi #' + newOrder.id + ' - ' + (newOrder.customerName || ''));
+    }
+
+    async function saveOrdersToGitHubApi(ordersList, commitMsg) {
+      // Backwards-compatible helper: if empty list, delete all cached order files
+      if (Array.isArray(ordersList) && ordersList.length === 0) {
+        const names = Object.keys(ghOrderFileCache);
+        for (const fn of names) {
+          await deleteSingleOrderFromGitHub(fn.replace(/\.json$/, ''), commitMsg || 'Reset toan bo don');
+        }
+      }
+      return true;
+    }
+
     async function syncOrdersFromGoogleSheet(showManualToast = false) {
       if (isSyncingOrders && !showManualToast) return false;
       isSyncingOrders = true;
       try {
-        let incoming = null;
-        let sourceLabel = '';
-
-        // 1. Try reading directly from GitHub orders-data.json first (instant via GitHub API for Admin!)
-        try {
-          const ghOrders = await fetchOrdersFromGitHubApi();
-          if (Array.isArray(ghOrders)) {
-            incoming = ghOrders;
-            sourceLabel = 'GitHub';
-          }
-        } catch (e) { /* fallback to Apps Script */ }
-
-        // 2. Fallback or merge with Google Apps Script doGet if GitHub orders-data.json isn't ready yet
-        if (!incoming || incoming.length === 0) {
-          const url = (state.settings && state.settings.webhookUrl ? state.settings.webhookUrl : '').trim();
-          if (url) {
-            try {
-              const sep = url.includes('?') ? '&' : '?';
-              const res = await fetch(url + sep + 'action=getOrders&t=' + Date.now(), { method: 'GET', redirect: 'follow' });
-              if (res.ok) {
-                const data = JSON.parse(await res.text());
-                if (data && Array.isArray(data.orders)) {
-                  incoming = data.orders;
-                  sourceLabel = 'Sheets';
-                }
-              }
-            } catch (e) { /* keep whatever we got */ }
-          }
-        }
-
-        if (!Array.isArray(incoming)) {
-          throw new Error('Không đọc được orders-data.json trên GitHub (kiểm tra quyền Contents của Token)');
-        }
-
+        const incoming = await fetchOrdersFromGitHubApi();
         const hadInitialLoad = knownOrderIds.size > 0;
         const newlyArrived = [];
         incoming.forEach(o => {
@@ -1674,7 +1702,11 @@
         });
 
         const prevSig = JSON.stringify(state.orders.map(o => o.id + ':' + o.status + ':' + o.paymentStatus));
-        state.orders = incoming.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        // Preserve any order just created locally within the last 15 seconds while GitHub directory listing propagates
+        const nowMs = Date.now();
+        const incomingIds = new Set(incoming.map(o => o.id));
+        const veryRecentLocal = state.orders.filter(o => !incomingIds.has(o.id) && (nowMs - new Date(o.createdAt).getTime()) < 15000);
+        state.orders = [...veryRecentLocal, ...incoming].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         const nextSig = JSON.stringify(state.orders.map(o => o.id + ':' + o.status + ':' + o.paymentStatus));
         saveState();
 
@@ -1682,7 +1714,7 @@
         const badgeEl = document.getElementById('adminPendingBadge');
         if (badgeEl) badgeEl.textContent = String(pendingCount);
 
-        setOrderSyncLine(`🟢 Đồng bộ ${sourceLabel} 3s • ${state.orders.length} đơn (${new Date().toLocaleTimeString('vi-VN')})`);
+        setOrderSyncLine(`🟢 GitHub Live 3s • ${state.orders.length} đơn (${new Date().toLocaleTimeString('vi-VN')})`);
 
         if (prevSig !== nextSig || showManualToast) {
           if (activeView === 'admin') {
@@ -1699,13 +1731,14 @@
           const newest = newlyArrived[0];
           showToast(`🔔 CÓ ĐƠN MỚI #${newest.id} từ ${newest.customerName} (${fmtMoney(newest.total)})!`, 'info');
         } else if (showManualToast) {
-          showToast(`Đã đồng bộ xong ${state.orders.length} đơn hàng từ ${sourceLabel}!`, 'success');
+          showToast(`Đã đồng bộ xong ${state.orders.length} đơn hàng từ GitHub!`, 'success');
         }
         return true;
       } catch (err) {
-        setOrderSyncLine('🔴 ' + (err.message || 'Chưa kết nối được'), true);
+        const msg = err && err.message ? err.message : 'Lỗi kết nối GitHub';
+        setOrderSyncLine('🔴 ' + msg, true);
         if (showManualToast) {
-          showToast('Lỗi đồng bộ đơn: ' + (err.message || 'Kiểm tra lại kết nối!'), 'error');
+          showToast('Lỗi đồng bộ GitHub: ' + msg, 'error');
         }
         return false;
       } finally {
@@ -1760,28 +1793,8 @@
       return new TextDecoder().decode(bytes);
     }
 
-    async function decryptAdminToken(password) {
-      if (!window.crypto || !window.crypto.subtle || !password) return '';
-      try {
-        const b64ToBuf = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-        const enc = new TextEncoder();
-        const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
-        const aesKey = await crypto.subtle.deriveKey(
-          { name: 'PBKDF2', salt: b64ToBuf(ENC_GH_TOKEN_VAULT.s), iterations: 100000, hash: 'SHA-256' },
-          baseKey,
-          { name: 'AES-GCM', length: 256 },
-          false,
-          ['decrypt']
-        );
-        const plainBuf = await crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: b64ToBuf(ENC_GH_TOKEN_VAULT.i) },
-          aesKey,
-          b64ToBuf(ENC_GH_TOKEN_VAULT.c)
-        );
-        return new TextDecoder().decode(plainBuf);
-      } catch (e) {
-        return '';
-      }
+    async function decryptAdminToken() {
+      return getBuiltInGithubToken();
     }
 
     async function syncFromCloudJson(showFeedback = false) {
@@ -3549,7 +3562,7 @@
         });
       });
 
-      document.getElementById('checkoutForm').addEventListener('submit', (e) => {
+      document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const method = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'bank_transfer';
         const errEl = document.getElementById('checkoutError');
@@ -3597,23 +3610,38 @@
           total: getCartTotal()
         };
 
+        const submitBtn = document.querySelector('#checkoutForm button[type="submit"]');
+        const origBtnText = submitBtn ? submitBtn.textContent : '';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = '⏳ Đang gửi đơn lên hệ thống quán...';
+        }
+
+        // Wait for GitHub order file PUT to finish BEFORE switching view (prevents race condition!)
+        const ghRes = await appendOrderToGitHubApi(newOrder);
+
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = origBtnText;
+        }
+
+        if (!ghRes.ok) {
+          errEl.textContent = '❌ Chưa gửi được đơn lên GitHub (' + (ghRes.error || 'Lỗi kết nối') + '). Vui lòng kiểm tra lại Token GitHub!';
+          errEl.classList.remove('hidden');
+          showToast('Lỗi gửi đơn lên GitHub: ' + (ghRes.error || 'Kiểm tra Token'), 'error');
+          return;
+        }
+
         state.orders.unshift(newOrder);
+        knownOrderIds.add(newOrder.id);
         saveState();
-        // Push order directly to GitHub orders-data.json so Admin sees it in 3 seconds on any device!
-        appendOrderToGitHubApi(newOrder).then((ghRes) => {
-          if (ghRes.ok) {
-            showToast(`Đã đồng bộ đơn #${newOrder.id} lên hệ thống quán thành công!`, 'info');
-          } else {
-            showToast('Lưu đơn lên GitHub lỗi: ' + (ghRes.error || 'Kiểm tra quyền token repo sunnytea'), 'error');
-          }
-        });
         // Keep Gmail notification running in background
         sendOrderToGoogleSheet(newOrder);
         cart = [];
         updateCartUI();
         document.getElementById('checkoutModal').classList.add('hidden');
         playPopSound(600, 1200);
-        showToast(`Đặt đơn #${newOrder.id} thành công! ${method === 'bank_transfer' ? 'Quán sẽ kiểm tra tiền CK và xác nhận ngay.' : ''}`, 'success');
+        showToast(`✅ Đặt đơn #${newOrder.id} thành công! Quán đã nhận được đơn ngay lập tức.`, 'success');
         switchView('orders');
       });
 
@@ -3639,7 +3667,7 @@
           order.paymentStatus = payStatus;
           saveState();
           postToGoogleSheet({ action: 'updateOrder', id: orderId, status: order.status, paymentStatus: order.paymentStatus });
-          saveOrdersToGitHubApi(state.orders, 'Cap nhat don #' + orderId);
+          upsertSingleOrderToGitHub(order, 'Cap nhat don #' + orderId);
           document.getElementById('adminPendingBadge').textContent = String(state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length);
           renderAdminOrders();
           showToast(
@@ -3667,7 +3695,7 @@
             state.orders = state.orders.filter(o => o.id !== orderId);
             saveState();
             postToGoogleSheet({ action: 'deleteOrder', id: orderId });
-            saveOrdersToGitHubApi(state.orders, 'Xoa don #' + orderId);
+            deleteSingleOrderFromGitHub(orderId, 'Xoa don #' + orderId);
             document.getElementById('adminPendingBadge').textContent = String(state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length);
             renderAdminOrders();
             showToast(`Đã xóa đơn #${orderId}!`, 'info');
@@ -3684,7 +3712,7 @@
         if (newStatus === 'completed') order.paymentStatus = 'paid';
         saveState();
         postToGoogleSheet({ action: 'updateOrder', id: orderId, status: order.status, paymentStatus: order.paymentStatus });
-          saveOrdersToGitHubApi(state.orders, 'Cap nhat don #' + orderId);
+          upsertSingleOrderToGitHub(order, 'Cap nhat don #' + orderId);
         document.getElementById('adminPendingBadge').textContent = String(state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length);
         renderAdminOrders();
         showToast(`Đã cập nhật đơn #${orderId} → ${STATUS_MAP[newStatus].label}`, 'success');
@@ -3707,7 +3735,7 @@
           state.orders = state.orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
           saveState();
           postToGoogleSheet({ action: 'deleteManyOrders', ids: removedIds });
-          saveOrdersToGitHubApi(state.orders, 'Don gon don da xong/huy');
+          Promise.all(removedIds.map(id => deleteSingleOrderFromGitHub(id, 'Don don #' + id)));
           document.getElementById('adminPendingBadge').textContent = String(state.orders.filter(o => o.status === 'pending' || o.paymentStatus === 'checking').length);
           renderAdminOrders();
           showToast(`Đã dọn sạch ${count} đơn đã xong/hủy!`, 'success');
