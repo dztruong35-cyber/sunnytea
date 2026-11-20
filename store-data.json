@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T13:29:09.006Z",
+  "updatedAt": "2026-11-20T13:29:28.611Z",
   "settings": {
     "shopName": "Tiệm Trà Sữa & Ăn Vặt Nhà Sunny",
     "bankName": "MB Bank (Ngân hàng Quân Đội)",
@@ -162,15 +162,7 @@
     }
   },
   "vouchers": [],
-  "reviews": [
-    {
-      "id": "rev_1795181314438",
-      "author": "Nguyễn Nhựt Trường",
-      "stars": 1,
-      "text": "Ngon",
-      "createdAt": "2026-11-20T13:28:34.438Z"
-    }
-  ],
+  "reviews": [],
   "products": [
     {
       "id": "p1",
