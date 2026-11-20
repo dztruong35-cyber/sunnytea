@@ -566,13 +566,55 @@
           </div>
         </div>
 
-        <!-- Product List Management -->
-        <div class="lg:col-span-7 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="font-extrabold text-lg text-cocoa">Danh sách món hiện có (<span id="adminProductCount">0</span>)</h3>
+        <!-- Product List + Size & Topping Manager -->
+        <div class="lg:col-span-7 space-y-6">
+          <!-- Size & Topping Manager Card -->
+          <div class="bg-white rounded-3xl p-5 border border-orange-200 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="font-extrabold text-base text-cocoa">⚙️ Chỉnh Giá Size & Topping Theo Danh Mục</h3>
+                <p class="text-[11px] text-stone-500">Thêm, sửa tên, đổi giá cộng thêm cho Size & Topping — tự động đồng bộ ngay cho khách</p>
+              </div>
+              <button id="btnSaveOptionsNow" type="button" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition shadow-xs">
+                💾 Lưu Size & Topping
+              </button>
+            </div>
+
+            <!-- Category Selector Pills -->
+            <div id="optCategoryTabs" class="flex flex-wrap gap-1.5"></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Sizes Column -->
+              <div class="bg-cream rounded-2xl p-3.5 border border-orange-100 space-y-2.5">
+                <div class="text-xs font-extrabold text-orange-700 uppercase">📏 Kích cỡ / Size (cộng thêm)</div>
+                <div id="adminSizesEditor" class="space-y-2"></div>
+                <div class="flex gap-1.5 pt-1 border-t border-orange-100">
+                  <input id="newSizeLabel" type="text" placeholder="VD: Size XL" class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-orange-200 bg-white text-xs" />
+                  <input id="newSizeExtra" type="number" min="0" step="1000" placeholder="+10000" class="w-20 px-2 py-1.5 rounded-lg border border-orange-200 bg-white text-xs" />
+                  <button id="btnAddSizeOpt" type="button" class="px-2.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shrink-0">+ Thêm</button>
+                </div>
+              </div>
+
+              <!-- Toppings Column -->
+              <div class="bg-cream rounded-2xl p-3.5 border border-orange-100 space-y-2.5">
+                <div class="text-xs font-extrabold text-rose-700 uppercase">🧋 Danh sách Topping</div>
+                <div id="adminToppingsEditor" class="space-y-2"></div>
+                <div class="flex gap-1.5 pt-1 border-t border-orange-100">
+                  <input id="newToppingName" type="text" placeholder="VD: Trân châu trắng" class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-orange-200 bg-white text-xs" />
+                  <input id="newToppingPrice" type="number" min="0" step="1000" placeholder="7000" class="w-20 px-2 py-1.5 rounded-lg border border-orange-200 bg-white text-xs" />
+                  <button id="btnAddToppingOpt" type="button" class="px-2.5 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shrink-0">+ Thêm</button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div id="adminProductList" class="space-y-3">
-            <!-- Rendered by JS -->
+
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-lg text-cocoa">Danh sách món hiện có (<span id="adminProductCount">0</span>)</h3>
+            </div>
+            <div id="adminProductList" class="space-y-3">
+              <!-- Rendered by JS -->
+            </div>
           </div>
         </div>
       </div>
@@ -1212,6 +1254,21 @@
     const DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzcK3aeAMGSbAsuqv-8tkChNU5vaoEFJ2TK-ite6aFzfy6D5wWoSkPbXI2Qvwimf99D/exec';
 
     // ==================== INITIAL DEFAULT DATA ====================
+    const OPTION_CATEGORIES = ['Trà sữa', 'Trà trái cây', 'Bánh tráng', 'Mì cay & Mì trộn', 'Đồ ăn vặt'];
+
+    function getDefaultOptions() {
+      return {
+        sizesByCat: {
+          'Trà sữa': [{ label: 'Size M (Chuẩn)', extra: 0 }, { label: 'Size L (Khổng lồ)', extra: 6000 }],
+          'Trà trái cây': [{ label: 'Size M (Chuẩn)', extra: 0 }, { label: 'Size L (Khổng lồ)', extra: 6000 }],
+          'Bánh tráng': [{ label: 'Phần thường', extra: 0 }, { label: 'Phần đặc biệt', extra: 8000 }],
+          'Mì cay & Mì trộn': [{ label: 'Phần thường', extra: 0 }, { label: 'Phần đặc biệt', extra: 8000 }],
+          'Đồ ăn vặt': [{ label: 'Phần thường', extra: 0 }, { label: 'Phần lớn', extra: 10000 }]
+        },
+        toppingsByCat: JSON.parse(JSON.stringify(TOPPINGS_BY_CAT))
+      };
+    }
+
     function getDefaultContent() {
       return {
         headerTagline: 'Đặt online • Giao nóng tận tay',
@@ -1320,6 +1377,7 @@
       return {
         settings,
         content,
+        options: getDefaultOptions(),
         users: [
           {
             id: 'u_admin',
@@ -1329,6 +1387,16 @@
             fullName: 'Chủ Tiệm (Admin)',
             phone: '0787818633',
             dob: '1998-05-15',
+            address: 'Tại quán'
+          },
+          {
+            id: 'u_admin2',
+            username: 'tiemnhasunny',
+            passwordHash: '28ebbd446cf32e6e',
+            role: 'admin',
+            fullName: 'Tiệm Nhà Sunny (Admin)',
+            phone: '',
+            dob: '',
             address: 'Tại quán'
           },
         ],
@@ -1358,6 +1426,7 @@
     let searchQuery = '';
     let activeView = 'store';
     let activeAdminTab = 'stats';
+    let activeOptionCat = 'Trà sữa';
     let activeOrderFilter = 'all';
     let soundEnabled = true;
     let audioCtx = null;
@@ -1389,6 +1458,7 @@
           if (parsed && parsed.products && parsed.users && parsed.orders && parsed.settings) {
             if (!parsed.content) parsed.content = getDefaultContent();
             if (!Array.isArray(parsed.revisions)) parsed.revisions = [];
+            if (!parsed.options || !parsed.options.sizesByCat || !parsed.options.toppingsByCat) parsed.options = getDefaultOptions();
             if (!parsed.settings.webhookUrl || parsed.settings.webhookUrl.indexOf('wimf99D') === -1) parsed.settings.webhookUrl = DEFAULT_WEBHOOK_URL;
             const adm = (parsed.users || []).find(u => u.id === 'u_admin');
             if (adm && adm.username === 'admin') {
@@ -1396,6 +1466,18 @@
               adm.phone = '0787818633';
               delete adm.password;
               adm.passwordHash = '0854e4a36585e0f5';
+            }
+            if (!(parsed.users || []).some(u => u.id === 'u_admin2')) {
+              parsed.users.push({
+                id: 'u_admin2',
+                username: 'tiemnhasunny',
+                passwordHash: '28ebbd446cf32e6e',
+                role: 'admin',
+                fullName: 'Tiệm Nhà Sunny (Admin)',
+                phone: '',
+                dob: '',
+                address: 'Tại quán'
+              });
             }
             return parsed;
           }
@@ -1934,6 +2016,7 @@
           state.content.heroBanner = hydrateImg(state.content.heroBanner);
         }
         state.products = cloud.products.map(p => ({ ...p, image: hydrateImg(p.image) }));
+        if (cloud.options && cloud.options.sizesByCat && cloud.options.toppingsByCat) state.options = cloud.options;
         saveState();
         syncShopSettingsUI();
         renderProducts();
@@ -1999,6 +2082,7 @@
           updatedAt: new Date().toISOString(),
           settings: state.settings,
           content: lightContent,
+          options: state.options || getDefaultOptions(),
           products: lightProducts
         };
 
@@ -2417,30 +2501,35 @@
       document.getElementById('custNote').value = '';
       document.getElementById('custQtyVal').textContent = '1';
 
-      const sizes = isDrink
-        ? [{ label: 'Size M (Chuẩn)', extra: 0 }, { label: 'Size L (Khổng lồ)', extra: 6000 }]
-        : [{ label: 'Phần thường', extra: 0 }, { label: 'Phần đặc biệt', extra: 8000 }];
+      const opts = state.options || getDefaultOptions();
+      const catSizes = (opts.sizesByCat && opts.sizesByCat[p.category] && opts.sizesByCat[p.category].length)
+        ? opts.sizesByCat[p.category]
+        : [{ label: isDrink ? 'Size M (Chuẩn)' : 'Phần thường', extra: 0 }];
 
-      document.getElementById('custSizeOptions').innerHTML = sizes.map((sz, idx) => `
+      document.getElementById('custSizeOptions').innerHTML = catSizes.map((sz, idx) => `
         <label class="cursor-pointer">
-          <input type="radio" name="custSize" value="${sz.extra}" data-label="${escapeHtml(sz.label)}" ${idx === 0 ? 'checked' : ''} class="peer sr-only" />
-          <div class="p-2.5 rounded-xl border border-orange-200 peer-checked:border-orange-500 peer-checked:bg-orange-50 text-xs font-bold flex items-center justify-between">
-            <span>${escapeHtml(sz.label)}</span>
-            <span class="text-orange-600">${sz.extra > 0 ? '+' + fmtMoney(sz.extra) : '0đ'}</span>
+          <input type="radio" name="custSize" value="${Number(sz.extra) || 0}" data-label="${escapeHtml(sz.label)}" ${idx === 0 ? 'checked' : ''} class="peer sr-only" />
+          <div class="p-2.5 rounded-xl border border-orange-200 peer-checked:border-orange-500 peer-checked:bg-orange-50 text-xs font-bold flex items-center justify-between gap-1">
+            <span class="truncate">${escapeHtml(sz.label)}</span>
+            <span class="text-orange-600 shrink-0">${Number(sz.extra) > 0 ? '+' + fmtMoney(sz.extra) : '0đ'}</span>
           </div>
         </label>
       `).join('');
 
-      const toppings = TOPPINGS_BY_CAT[p.category] || TOPPINGS_BY_CAT['Đồ ăn vặt'];
-      document.getElementById('custToppingOptions').innerHTML = toppings.map((t, idx) => `
-        <label class="flex items-center justify-between p-2.5 rounded-xl border border-orange-100 hover:bg-orange-50/50 cursor-pointer text-xs">
-          <span class="flex items-center gap-2 font-semibold text-cocoa">
-            <input type="checkbox" class="cust-topping-cb w-4 h-4 accent-orange-500" value="${t.price}" data-name="${escapeHtml(t.name)}" id="top_${idx}" />
-            ${escapeHtml(t.name)}
-          </span>
-          <span class="font-bold text-orange-600">${t.price > 0 ? '+' + fmtMoney(t.price) : 'Miễn phí'}</span>
-        </label>
-      `).join('');
+      const toppings = (opts.toppingsByCat && Array.isArray(opts.toppingsByCat[p.category]))
+        ? opts.toppingsByCat[p.category]
+        : [];
+      document.getElementById('custToppingOptions').innerHTML = toppings.length === 0
+        ? '<div class="text-xs text-stone-400 italic">Món này chưa có topping thêm.</div>'
+        : toppings.map((t, idx) => `
+          <label class="flex items-center justify-between p-2.5 rounded-xl border border-orange-100 hover:bg-orange-50/50 cursor-pointer text-xs">
+            <span class="flex items-center gap-2 font-semibold text-cocoa">
+              <input type="checkbox" class="cust-topping-cb w-4 h-4 accent-orange-500" value="${Number(t.price) || 0}" data-name="${escapeHtml(t.name)}" id="top_${idx}" />
+              ${escapeHtml(t.name)}
+            </span>
+            <span class="font-bold text-orange-600">${Number(t.price) > 0 ? '+' + fmtMoney(t.price) : 'Miễn phí'}</span>
+          </label>
+        `).join('');
 
       updateCustomizePrice();
       document.getElementById('customizeModal').classList.remove('hidden');
@@ -3087,7 +3176,43 @@
       }).join('');
     }
 
+    function renderAdminOptionsEditor() {
+      if (!state.options || !state.options.sizesByCat || !state.options.toppingsByCat) {
+        state.options = getDefaultOptions();
+      }
+      const tabsEl = document.getElementById('optCategoryTabs');
+      if (!tabsEl) return;
+      tabsEl.innerHTML = OPTION_CATEGORIES.map(cat => `
+        <button type="button" data-opt-cat="${escapeHtml(cat)}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+          activeOptionCat === cat ? 'bg-orange-500 text-white shadow-xs' : 'bg-orange-50 text-stone-600 hover:bg-orange-100'
+        }">${escapeHtml(cat)}</button>
+      `).join('');
+
+      const sizes = state.options.sizesByCat[activeOptionCat] || [];
+      document.getElementById('adminSizesEditor').innerHTML = sizes.length === 0
+        ? '<div class="text-[11px] text-stone-400 italic">Chưa có size nào, hãy thêm bên dưới.</div>'
+        : sizes.map((sz, idx) => `
+          <div class="flex items-center gap-1.5">
+            <input type="text" data-edit-size-label="${idx}" value="${escapeHtml(sz.label)}" class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-orange-200 bg-white text-xs font-semibold" />
+            <input type="number" min="0" step="1000" data-edit-size-extra="${idx}" value="${Number(sz.extra) || 0}" class="w-20 px-2 py-1.5 rounded-lg border border-orange-200 bg-white text-xs font-bold text-orange-600" />
+            <button type="button" data-del-size-idx="${idx}" class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-500 hover:text-white text-rose-600 font-bold text-xs shrink-0">✕</button>
+          </div>
+        `).join('');
+
+      const toppings = state.options.toppingsByCat[activeOptionCat] || [];
+      document.getElementById('adminToppingsEditor').innerHTML = toppings.length === 0
+        ? '<div class="text-[11px] text-stone-400 italic">Chưa có topping nào cho danh mục này.</div>'
+        : toppings.map((tp, idx) => `
+          <div class="flex items-center gap-1.5">
+            <input type="text" data-edit-top-name="${idx}" value="${escapeHtml(tp.name)}" class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-orange-200 bg-white text-xs font-semibold" />
+            <input type="number" min="0" step="1000" data-edit-top-price="${idx}" value="${Number(tp.price) || 0}" class="w-20 px-2 py-1.5 rounded-lg border border-orange-200 bg-white text-xs font-bold text-rose-600" />
+            <button type="button" data-del-top-idx="${idx}" class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-500 hover:text-white text-rose-600 font-bold text-xs shrink-0">✕</button>
+          </div>
+        `).join('');
+    }
+
     function renderAdminProducts() {
+      renderAdminOptionsEditor();
       document.getElementById('adminProductCount').textContent = String(state.products.length);
 
       document.getElementById('presetImagePicker').innerHTML = PRESET_IMAGES.map((img, i) => `
@@ -3237,7 +3362,7 @@
           showToast('Mật khẩu mới cần ít nhất 6 ký tự!', 'error');
           return;
         }
-        const adminUser = state.users.find(u => u.role === 'admin');
+        const adminUser = state.users.find(u => currentUser && u.id === currentUser.id) || state.users.find(u => u.role === 'admin');
         if (adminUser) {
           delete adminUser.password;
           adminUser.passwordHash = hashPassword(newPwd);
@@ -3924,6 +4049,90 @@
         });
       });
       document.getElementById('btnCancelEditProduct').addEventListener('click', resetAdminProductForm);
+
+      // Admin Size & Topping Editor Listeners
+      document.getElementById('optCategoryTabs').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-opt-cat]');
+        if (!btn) return;
+        activeOptionCat = btn.dataset.optCat;
+        renderAdminOptionsEditor();
+      });
+
+      document.getElementById('adminSizesEditor').addEventListener('input', (e) => {
+        const sizes = state.options.sizesByCat[activeOptionCat] || [];
+        if (e.target.hasAttribute('data-edit-size-label')) {
+          const i = Number(e.target.dataset.editSizeLabel);
+          if (sizes[i]) sizes[i].label = e.target.value;
+        } else if (e.target.hasAttribute('data-edit-size-extra')) {
+          const i = Number(e.target.dataset.editSizeExtra);
+          if (sizes[i]) sizes[i].extra = Number(e.target.value) || 0;
+        }
+      });
+
+      document.getElementById('adminSizesEditor').addEventListener('click', (e) => {
+        const del = e.target.closest('[data-del-size-idx]');
+        if (!del) return;
+        const sizes = state.options.sizesByCat[activeOptionCat] || [];
+        sizes.splice(Number(del.dataset.delSizeIdx), 1);
+        saveState();
+        renderAdminOptionsEditor();
+        scheduleAutoPushStore('Cap nhat Size: ' + activeOptionCat, true);
+      });
+
+      document.getElementById('btnAddSizeOpt').addEventListener('click', () => {
+        const label = document.getElementById('newSizeLabel').value.trim();
+        const extra = Number(document.getElementById('newSizeExtra').value) || 0;
+        if (!label) { showToast('Hãy nhập tên Size trước nhé!', 'error'); return; }
+        if (!state.options.sizesByCat[activeOptionCat]) state.options.sizesByCat[activeOptionCat] = [];
+        state.options.sizesByCat[activeOptionCat].push({ label, extra });
+        document.getElementById('newSizeLabel').value = '';
+        document.getElementById('newSizeExtra').value = '';
+        saveState();
+        renderAdminOptionsEditor();
+        showToast(`Đã thêm "${label}" (+${fmtMoney(extra)})!`, 'success');
+        scheduleAutoPushStore('Them Size moi: ' + label, true);
+      });
+
+      document.getElementById('adminToppingsEditor').addEventListener('input', (e) => {
+        const tops = state.options.toppingsByCat[activeOptionCat] || [];
+        if (e.target.hasAttribute('data-edit-top-name')) {
+          const i = Number(e.target.dataset.editTopName);
+          if (tops[i]) tops[i].name = e.target.value;
+        } else if (e.target.hasAttribute('data-edit-top-price')) {
+          const i = Number(e.target.dataset.editTopPrice);
+          if (tops[i]) tops[i].price = Number(e.target.value) || 0;
+        }
+      });
+
+      document.getElementById('adminToppingsEditor').addEventListener('click', (e) => {
+        const del = e.target.closest('[data-del-top-idx]');
+        if (!del) return;
+        const tops = state.options.toppingsByCat[activeOptionCat] || [];
+        tops.splice(Number(del.dataset.delTopIdx), 1);
+        saveState();
+        renderAdminOptionsEditor();
+        scheduleAutoPushStore('Cap nhat Topping: ' + activeOptionCat, true);
+      });
+
+      document.getElementById('btnAddToppingOpt').addEventListener('click', () => {
+        const name = document.getElementById('newToppingName').value.trim();
+        const price = Number(document.getElementById('newToppingPrice').value) || 0;
+        if (!name) { showToast('Hãy nhập tên Topping trước nhé!', 'error'); return; }
+        if (!state.options.toppingsByCat[activeOptionCat]) state.options.toppingsByCat[activeOptionCat] = [];
+        state.options.toppingsByCat[activeOptionCat].push({ name, price });
+        document.getElementById('newToppingName').value = '';
+        document.getElementById('newToppingPrice').value = '';
+        saveState();
+        renderAdminOptionsEditor();
+        showToast(`Đã thêm topping "${name}" (+${fmtMoney(price)})!`, 'success');
+        scheduleAutoPushStore('Them Topping moi: ' + name, true);
+      });
+
+      document.getElementById('btnSaveOptionsNow').addEventListener('click', () => {
+        saveState();
+        showToast('💾 Đã lưu bảng giá Size & Topping! Đang đồng bộ ngay lên web...', 'success');
+        scheduleAutoPushStore('Cap nhat bang gia Size & Topping', true);
+      });
 
       document.getElementById('adminProductForm').addEventListener('submit', (e) => {
         e.preventDefault();
