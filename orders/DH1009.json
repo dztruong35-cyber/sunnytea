@@ -8,8 +8,8 @@
   "address": "Kv long định",
   "paymentMethod": "cod",
   "transferMemo": "",
-  "paymentStatus": "unpaid",
-  "status": "preparing",
+  "paymentStatus": "paid",
+  "status": "completed",
   "createdAt": "2026-11-20T13:22:00.163Z",
   "receiptImage": "",
   "items": [
