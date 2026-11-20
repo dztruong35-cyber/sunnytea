@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T12:58:55.568Z",
+  "updatedAt": "2026-11-20T13:24:29.996Z",
   "settings": {
     "shopName": "Tiệm Trà Sữa & Ăn Vặt Nhà Sunny",
     "bankName": "MB Bank (Ngân hàng Quân Đội)",
@@ -161,7 +161,15 @@
       ]
     }
   },
-  "vouchers": [],
+  "vouchers": [
+    {
+      "code": "TRUONGCUTE",
+      "type": "percent",
+      "value": 40,
+      "minOrder": 100000,
+      "active": true
+    }
+  ],
   "reviews": [],
   "products": [
     {
