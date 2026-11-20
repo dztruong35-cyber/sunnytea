@@ -1,0 +1,30 @@
+{
+  "id": "DH1017",
+  "userId": "u_1795082409253",
+  "customerName": "Nguyễn Nhựt Trường",
+  "customerPhone": "0939893304",
+  "customerDob": "2009-06-19",
+  "receiveType": "delivery",
+  "address": "Kv long định",
+  "paymentMethod": "cod",
+  "transferMemo": "",
+  "paymentStatus": "unpaid",
+  "status": "pending",
+  "createdAt": "2026-11-20T14:06:44.072Z",
+  "receiptImage": "",
+  "items": [
+    {
+      "productId": "p5",
+      "name": "Cá Viên Chiên Nước Mắm Tỏi Ớt",
+      "category": "Đồ ăn vặt",
+      "size": "Phần thường",
+      "toppings": [],
+      "note": "",
+      "qty": 1,
+      "unitPrice": 38000
+    }
+  ],
+  "voucherCode": "TRUONGCUTE",
+  "discount": 15200,
+  "total": 22800
+}
