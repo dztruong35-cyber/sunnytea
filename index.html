@@ -270,6 +270,32 @@
       100% { transform: scale(0.95); filter: blur(1px); }
     }
     .slot-spinning { animation: slotSpin 0.16s ease-in-out infinite; }
+
+    /* Brand Palette Overrides (Admin selectable!) */
+    body.theme-strawberry { --accent-glow: rgba(236, 72, 153, 0.25); }
+    body.theme-strawberry .from-orange-500 { --tw-gradient-from: #ec4899 var(--tw-gradient-from-position) !important; }
+    body.theme-strawberry .to-rose-500 { --tw-gradient-to: #f43f5e var(--tw-gradient-to-position) !important; }
+    body.theme-strawberry .text-orange-600 { color: #db2777 !important; }
+    body.theme-strawberry .bg-orange-500 { background-color: #ec4899 !important; }
+
+    body.theme-matcha .from-orange-500 { --tw-gradient-from: #059669 var(--tw-gradient-from-position) !important; }
+    body.theme-matcha .to-rose-500 { --tw-gradient-to: #10b981 var(--tw-gradient-to-position) !important; }
+    body.theme-matcha .text-orange-600 { color: #059669 !important; }
+    body.theme-matcha .bg-orange-500 { background-color: #059669 !important; }
+
+    body.theme-taro .from-orange-500 { --tw-gradient-from: #7c3aed var(--tw-gradient-from-position) !important; }
+    body.theme-taro .to-rose-500 { --tw-gradient-to: #a855f7 var(--tw-gradient-to-position) !important; }
+    body.theme-taro .text-orange-600 { color: #7c3aed !important; }
+    body.theme-taro .bg-orange-500 { background-color: #7c3aed !important; }
+
+    /* Elevated VIP Card Shine */
+    .product-card {
+      position: relative;
+      background-clip: padding-box;
+    }
+    .product-card:hover {
+      transform: translateY(-7px) scale(1.01);
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -748,6 +774,25 @@
           <!-- Rendered by JS -->
         </div>
 
+        <!-- Admin Order Search + Today Toggle + Quick POS Walk-in Order -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-white p-3 rounded-2xl border border-orange-100 shadow-xs">
+          <div class="relative flex-1">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-xs">🔍</span>
+            <input id="adminOrderSearch" type="text" placeholder="Tìm đơn theo mã #DH, tên khách, SĐT..." class="w-full pl-8 pr-3 py-2 rounded-xl border border-orange-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="btnToggleTodayOnly" type="button" class="px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-800 text-xs font-extrabold transition">
+              📅 Lọc: Tất cả ngày
+            </button>
+            <button id="btnOpenKdsModal" type="button" class="btn-shimmer px-3.5 py-2 rounded-xl bg-gradient-to-r from-stone-900 to-cocoa hover:from-stone-800 hover:to-stone-900 text-amber-300 border border-amber-400/40 text-xs font-extrabold shadow-sm transition">
+              👨‍🍳 Màn hình Pha Chế (Bếp)
+            </button>
+            <button id="btnOpenPosModal" type="button" class="btn-shimmer px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-extrabold shadow-sm transition">
+              🧾 + Tạo đơn tại quầy (POS)
+            </button>
+          </div>
+        </div>
+
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div id="adminOrderFilters" class="flex flex-wrap items-center gap-2">
             <!-- Rendered by JS -->
@@ -949,6 +994,26 @@
               <div>
                 <label class="block text-xs font-bold text-stone-600 mb-1">📝 Nội dung / Lời nhắn của chủ tiệm (hiện cho khách)</label>
                 <textarea id="setOwnerNote" rows="2" placeholder="VD: Quán mở cửa 8h - 22h. Chuyển khoản xong nhớ gửi bill để quán làm nước liền nha!" class="w-full px-3.5 py-2 rounded-xl border border-orange-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"></textarea>
+              </div>
+              <div class="p-3.5 rounded-2xl bg-orange-50/70 border border-orange-200 space-y-2">
+                <label class="block text-xs font-extrabold text-cocoa">🎨 Tông màu thương hiệu quán (đồng bộ cho mọi khách)</label>
+                <div id="brandPalettePicker" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button type="button" data-brand-theme="orange" class="py-2 px-2 rounded-xl border-2 border-orange-500 bg-white text-[11px] font-extrabold text-orange-600">🍊 Cam Trà Sữa</button>
+                  <button type="button" data-brand-theme="strawberry" class="py-2 px-2 rounded-xl border border-pink-200 bg-white text-[11px] font-extrabold text-pink-600">🍓 Hồng Dâu</button>
+                  <button type="button" data-brand-theme="matcha" class="py-2 px-2 rounded-xl border border-emerald-200 bg-white text-[11px] font-extrabold text-emerald-700">🍵 Xanh Matcha</button>
+                  <button type="button" data-brand-theme="taro" class="py-2 px-2 rounded-xl border border-purple-200 bg-white text-[11px] font-extrabold text-purple-700">🍇 Tím Khoai Môn</button>
+                </div>
+              </div>
+              <div class="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-2">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-extrabold text-indigo-900">📢 Pop-up Thông Báo Khi Khách Mới Vào Web</label>
+                  <label class="flex items-center gap-1.5 text-xs font-bold text-indigo-800 cursor-pointer">
+                    <input id="setPopupEnabled" type="checkbox" class="w-4 h-4 accent-indigo-600" />
+                    Bật Pop-up
+                  </label>
+                </div>
+                <input id="setPopupTitle" type="text" placeholder="Tiêu đề (VD: 🎉 Khai trương tặng topping!)" class="w-full px-3 py-2 rounded-xl border border-indigo-200 bg-white text-xs font-bold" />
+                <textarea id="setPopupBody" rows="2" placeholder="Nội dung thông báo khuyến mãi, giờ nghỉ lễ..." class="w-full px-3 py-2 rounded-xl border border-indigo-200 bg-white text-xs"></textarea>
               </div>
               <div class="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-2">
                 <label class="block text-xs font-extrabold text-emerald-800">📷 Ảnh mã QR chuyển khoản thật của bạn</label>
@@ -1618,6 +1683,85 @@
     </div>
   </div>
 
+  <!-- ==================== ADMIN POS (TẠO ĐƠN TẠI QUẦY) MODAL ==================== -->
+  <div id="posModal" class="fixed inset-0 z-[65] hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+    <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="px-5 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between">
+        <div>
+          <h3 class="font-extrabold text-base">🧾 Tạo Đơn Tại Quầy (POS)</h3>
+          <p class="text-[11px] text-indigo-100">Ghi nhận khách mua trực tiếp để cộng thẳng vào doanh thu & in bill</p>
+        </div>
+        <button id="btnClosePosModal" type="button" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 font-bold text-xs">✕</button>
+      </div>
+      <form id="posOrderForm" class="p-5 overflow-y-auto space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-stone-600 mb-1">Tên khách (tùy chọn)</label>
+            <input id="posCustName" type="text" value="Khách tại quầy" class="w-full px-3 py-2 rounded-xl border border-orange-200 text-xs font-semibold" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-600 mb-1">Thanh toán</label>
+            <select id="posPayMethod" class="w-full px-3 py-2 rounded-xl border border-orange-200 bg-white text-xs font-bold">
+              <option value="cod">💵 Tiền mặt tại quầy</option>
+              <option value="bank_transfer">🏦 Đã chuyển khoản</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-xs font-bold text-stone-600 mb-2">Bấm chọn món khách gọi:</div>
+          <div id="posProductPicker" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="bg-cream rounded-2xl p-3.5 border border-orange-200 flex items-center justify-between">
+          <div>
+            <div class="text-xs font-bold text-stone-500">Tổng tiền đơn tại quầy:</div>
+            <div id="posTotalDisplay" class="text-xl font-black text-orange-600">0đ</div>
+          </div>
+          <button type="submit" class="btn-shimmer px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs shadow-md transition">
+            ✅ Chốt đơn & Cộng doanh thu
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== STOREFRONT WELCOME ANNOUNCEMENT POPUP ==================== -->
+  <div id="welcomePopupModal" class="fixed inset-0 z-[75] hidden flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+    <div class="bg-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border-2 border-orange-300 text-center">
+      <div class="p-6 bg-gradient-to-br from-orange-500 via-rose-500 to-amber-500 text-white">
+        <div class="text-4xl mb-2">🎉</div>
+        <h3 id="welcomePopupTitle" class="text-xl font-black tracking-tight"></h3>
+      </div>
+      <div class="p-6 space-y-4">
+        <p id="welcomePopupBody" class="text-sm text-stone-600 leading-relaxed whitespace-pre-line"></p>
+        <button id="btnCloseWelcomePopup" type="button" class="btn-shimmer w-full py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-rose-500 text-white font-extrabold text-sm shadow-md">
+          Đặt món ngay 🧋
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== KITCHEN DISPLAY SYSTEM (MÀN HÌNH PHA CHẾ BẾP) ==================== -->
+  <div id="kdsModal" class="fixed inset-0 z-[80] hidden bg-stone-950 text-white flex flex-col">
+    <div class="px-5 py-3.5 bg-stone-900 border-b border-orange-500/30 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <span class="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center text-xl">👨‍🍳</span>
+        <div>
+          <h3 class="font-black text-base sm:text-lg tracking-tight text-amber-300">MÀN HÌNH PHA CHẾ — QUẦY BẾP LIVE</h3>
+          <div id="kdsSummaryLine" class="text-xs text-stone-400">Đang tự động cập nhật đơn mới mỗi 3 giây</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnKdsRefresh" type="button" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold">🔄 Tải lại ngay</button>
+        <button id="btnCloseKds" type="button" class="px-4 py-2 rounded-xl bg-stone-800 hover:bg-rose-600 text-white text-xs font-extrabold border border-stone-700">✕ Thoát màn hình Bếp</button>
+      </div>
+    </div>
+    <div id="kdsBoardGrid" class="flex-1 overflow-y-auto p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 content-start">
+      <!-- Rendered by JS -->
+    </div>
+  </div>
+
   <!-- TOAST CONTAINER -->
   <div id="toastContainer" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
 
@@ -1726,6 +1870,10 @@
         shopOpen: true,
         hotline: '',
         zaloLink: '',
+        brandTheme: 'orange',
+        popupEnabled: false,
+        popupTitle: '',
+        popupBody: '',
         webhookUrl: DEFAULT_WEBHOOK_URL
       };
       const content = getDefaultContent();
@@ -1867,6 +2015,9 @@
     let adminCustomerSearchQuery = '';
     const ghUserFileCache = {};
     let activeOrderFilter = 'all';
+    let adminOrderSearchQuery = '';
+    let adminOrdersTodayOnly = false;
+    let posCartMap = {};
     let soundEnabled = true;
     let audioCtx = null;
     let isLiveEditMode = false;
@@ -2321,6 +2472,7 @@
         setOrderSyncLine(`🟢 GitHub Live 3s • ${state.orders.length} đơn (${new Date().toLocaleTimeString('vi-VN')})`);
 
         if (prevSig !== nextSig || showManualToast) {
+          if (!document.getElementById('kdsModal').classList.contains('hidden')) renderKdsBoard();
           if (activeView === 'admin') {
             if (activeAdminTab === 'orders') renderAdminOrders();
             if (activeAdminTab === 'stats') renderAdminStats();
@@ -2492,6 +2644,9 @@
       const m2 = document.getElementById('marqueeText2');
       if (m1) m1.textContent = mText;
       if (m2) m2.textContent = mText;
+      const bTheme = state.settings.brandTheme || 'orange';
+      document.body.classList.remove('theme-strawberry', 'theme-matcha', 'theme-taro');
+      if (bTheme !== 'orange') document.body.classList.add('theme-' + bTheme);
 
       const hl = (state.settings.hotline || '').replace(/[^\d+]/g, '');
       const zl = (state.settings.zaloLink || '').trim();
@@ -4078,8 +4233,17 @@
         }">${f.label}</button>
       `).join('');
 
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const oq = (adminOrderSearchQuery || '').trim().toLowerCase();
       const list = state.orders
         .filter(o => {
+          if (adminOrdersTodayOnly && (o.createdAt || '').slice(0, 10) !== todayIso) return false;
+          if (oq) {
+            const hit = (o.id || '').toLowerCase().includes(oq) ||
+                        (o.customerName || '').toLowerCase().includes(oq) ||
+                        (o.customerPhone || '').toLowerCase().includes(oq);
+            if (!hit) return false;
+          }
           if (activeOrderFilter === 'all') return true;
           if (activeOrderFilter === 'checking_bank') return o.paymentMethod === 'bank_transfer' && o.paymentStatus === 'checking';
           return o.status === activeOrderFilter;
@@ -4113,7 +4277,13 @@
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
               <div class="md:col-span-5 bg-cream rounded-2xl p-3.5 text-xs space-y-1.5 border border-orange-100">
                 <div class="font-extrabold text-cocoa text-sm">👤 ${escapeHtml(o.customerName)}</div>
-                <div>📱 SĐT: <strong>${escapeHtml(o.customerPhone)}</strong> • 🎂 ${escapeHtml(o.customerDob || '—')}</div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span>📱 SĐT: <strong>${escapeHtml(o.customerPhone)}</strong> • 🎂 ${escapeHtml(o.customerDob || '—')}</span>
+                  ${o.customerPhone && /\d{8,}/.test(o.customerPhone) ? `
+                    <a href="tel:${escapeHtml(o.customerPhone.replace(/[^\d+]/g, ''))}" class="px-2 py-0.5 rounded-md bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-extrabold">📞 Gọi</a>
+                    <a href="https://zalo.me/${escapeHtml(o.customerPhone.replace(/[^\d]/g, ''))}" target="_blank" rel="noopener noreferrer" class="px-2 py-0.5 rounded-md bg-sky-100 hover:bg-sky-200 text-sky-800 text-[10px] font-extrabold">💬 Zalo</a>
+                  ` : ''}
+                </div>
                 <div>${o.receiveType === 'pickup' ? '🏪 <strong>Qua quán lấy</strong>' : '🛵 Giao tới: ' + escapeHtml(o.address)}</div>
 
                 ${o.paymentMethod === 'bank_transfer' ? `
@@ -4263,6 +4433,15 @@
       document.getElementById('setShopAddress').value = s.shopAddress;
       document.getElementById('setHotline').value = s.hotline || '';
       document.getElementById('setZaloLink').value = s.zaloLink || '';
+      document.getElementById('setPopupEnabled').checked = !!s.popupEnabled;
+      document.getElementById('setPopupTitle').value = s.popupTitle || '';
+      document.getElementById('setPopupBody').value = s.popupBody || '';
+      const curB = s.brandTheme || 'orange';
+      document.querySelectorAll('[data-brand-theme]').forEach(btn => {
+        btn.classList.toggle('ring-2', btn.dataset.brandTheme === curB);
+        btn.classList.toggle('ring-offset-1', btn.dataset.brandTheme === curB);
+        btn.classList.toggle('ring-cocoa', btn.dataset.brandTheme === curB);
+      });
       document.getElementById('setOwnerNote').value = s.ownerNote || '';
       adminEditingBankQr = s.bankQrImage || '';
       const qrPrevWrap = document.getElementById('setBankQrPreviewWrap');
@@ -5580,6 +5759,10 @@
           shopAddress: document.getElementById('setShopAddress').value.trim(),
           hotline: document.getElementById('setHotline').value.trim(),
           zaloLink: document.getElementById('setZaloLink').value.trim(),
+          brandTheme: state.settings.brandTheme || 'orange',
+          popupEnabled: document.getElementById('setPopupEnabled').checked,
+          popupTitle: document.getElementById('setPopupTitle').value.trim(),
+          popupBody: document.getElementById('setPopupBody').value.trim(),
           shopOpen: state.settings.shopOpen !== false,
           ownerNote: document.getElementById('setOwnerNote').value.trim(),
           bankQrImage: adminEditingBankQr || '',
@@ -5838,6 +6021,202 @@
         scheduleAutoPushStore('Xoa danh gia khach', true);
       });
 
+            // Close Welcome Popup
+      document.getElementById('btnCloseWelcomePopup').addEventListener('click', () => {
+        document.getElementById('welcomePopupModal').classList.add('hidden');
+      });
+
+      // Brand Theme Color Picker (Admin)
+      document.getElementById('brandPalettePicker').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-brand-theme]');
+        if (!btn) return;
+        state.settings.brandTheme = btn.dataset.brandTheme;
+        saveState();
+        syncShopSettingsUI();
+        renderAdminCustomersAndSettings();
+        showToast('🎨 Đã đổi tông màu thương hiệu! Đang đồng bộ ngay lên web...', 'success');
+        scheduleAutoPushStore('Doi tong mau thuong hieu: ' + state.settings.brandTheme, true);
+      });
+
+      // Admin Order Search & Today-Only Toggle
+      document.getElementById('adminOrderSearch').addEventListener('input', (e) => {
+        adminOrderSearchQuery = e.target.value;
+        renderAdminOrders();
+      });
+      document.getElementById('btnToggleTodayOnly').addEventListener('click', (e) => {
+        adminOrdersTodayOnly = !adminOrdersTodayOnly;
+        e.currentTarget.textContent = adminOrdersTodayOnly ? '📅 Lọc: CHỈ HÔM NAY' : '📅 Lọc: Tất cả ngày';
+        e.currentTarget.className = adminOrdersTodayOnly
+          ? 'px-3 py-2 rounded-xl bg-orange-600 text-white text-xs font-extrabold transition'
+          : 'px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-800 text-xs font-extrabold transition';
+        renderAdminOrders();
+      });
+
+      // Admin POS (Tạo đơn tại quầy)
+      function renderPosPicker() {
+        const wrap = document.getElementById('posProductPicker');
+        wrap.innerHTML = state.products.filter(p => p.available).map(p => {
+          const qty = posCartMap[p.id] || 0;
+          return `
+            <div class="p-2.5 rounded-xl border ${qty > 0 ? 'border-indigo-400 bg-indigo-50/60' : 'border-orange-100 bg-white'} flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <div class="font-bold text-xs text-cocoa truncate">${escapeHtml(p.name)}</div>
+                <div class="text-[11px] font-black text-orange-600">${fmtMoney(p.price)}</div>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" data-pos-dec="${p.id}" class="w-6 h-6 rounded-lg bg-stone-100 hover:bg-stone-200 font-bold text-xs">−</button>
+                <span class="w-5 text-center text-xs font-black">${qty}</span>
+                <button type="button" data-pos-inc="${p.id}" class="w-6 h-6 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs">+</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+        const total = state.products.reduce((acc, p) => acc + (posCartMap[p.id] || 0) * p.price, 0);
+        document.getElementById('posTotalDisplay').textContent = fmtMoney(total);
+      }
+
+            // Kitchen Display System (Màn hình Pha Chế)
+      function renderKdsBoard() {
+        const board = document.getElementById('kdsBoardGrid');
+        const sumLine = document.getElementById('kdsSummaryLine');
+        if (!board) return;
+        const activeOrders = state.orders
+          .filter(o => o.status === 'pending' || o.status === 'preparing')
+          .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+        if (sumLine) {
+          const pCnt = activeOrders.filter(o => o.status === 'pending').length;
+          const prCnt = activeOrders.filter(o => o.status === 'preparing').length;
+          sumLine.textContent = `⏳ ${pCnt} đơn chờ nhận  •  🍳 ${prCnt} đơn đang pha chế  •  Cập nhật lúc ${new Date().toLocaleTimeString('vi-VN')}`;
+        }
+
+        if (activeOrders.length === 0) {
+          board.innerHTML = `
+            <div class="col-span-full flex flex-col items-center justify-center py-24 text-stone-400">
+              <div class="text-6xl mb-3">🧋</div>
+              <div class="text-xl font-black text-white">Quầy bếp đang trống đơn!</div>
+              <div class="text-xs mt-1">Đơn mới từ khách sẽ tự động nhảy lên đây kèm tiếng chuông sau 3 giây.</div>
+            </div>
+          `;
+          return;
+        }
+
+        board.innerHTML = activeOrders.map(o => {
+          const mins = Math.max(0, Math.floor((Date.now() - new Date(o.createdAt).getTime()) / 60000));
+          const isPending = o.status === 'pending';
+          const urgent = isPending && mins >= 5;
+          return `
+            <div class="rounded-3xl bg-stone-900 border-2 ${urgent ? 'border-rose-500 shadow-lg shadow-rose-500/20' : (isPending ? 'border-amber-400' : 'border-sky-500')} p-5 flex flex-col justify-between gap-4">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-stone-800">
+                  <div>
+                    <span class="font-mono font-black text-xl text-white">#${escapeHtml(o.id)}</span>
+                    <span class="ml-2 px-2.5 py-0.5 rounded-full text-[11px] font-black ${urgent ? 'bg-rose-600 text-white animate-pulse' : 'bg-stone-800 text-amber-300'}">⏱️ ${mins} phút</span>
+                  </div>
+                  <span class="px-2.5 py-1 rounded-xl text-[11px] font-extrabold ${isPending ? 'bg-amber-400 text-stone-950' : 'bg-sky-500 text-white'}">
+                    ${isPending ? '⏳ CHỜ NHẬN' : '🍳 ĐANG LÀM'}
+                  </span>
+                </div>
+
+                <div class="text-xs text-stone-300 flex items-center justify-between">
+                  <span>👤 <strong class="text-white">${escapeHtml(o.customerName)}</strong> (${escapeHtml(o.customerPhone)})</span>
+                  <span class="font-bold text-orange-400">${o.receiveType === 'pickup' ? '🏪 Qua lấy' : '🛵 Giao ship'}</span>
+                </div>
+
+                <div class="space-y-2.5 pt-1">
+                  ${(o.items || []).map(it => `
+                    <div class="p-3 rounded-2xl bg-stone-800/90 border border-stone-700/80">
+                      <div class="text-base font-black text-white">
+                        <span class="text-amber-400">${it.qty}x</span> ${escapeHtml(it.name)}
+                      </div>
+                      <div class="text-xs font-bold text-orange-300 mt-0.5">${escapeHtml(it.size || '')}${it.toppings && it.toppings.length ? ' • + ' + escapeHtml(it.toppings.join(', ')) : ''}</div>
+                      ${it.note ? `<div class="mt-1 px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/40 text-xs font-extrabold text-rose-200">📝 ${escapeHtml(it.note)}</div>` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 pt-2 border-t border-stone-800">
+                ${isPending
+                  ? `<button type="button" data-kds-status="${o.id}|preparing" class="col-span-2 py-3.5 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-black text-sm transition active:scale-95">🍳 BẮT ĐẦU LÀM ĐƠN NÀY</button>`
+                  : `<button type="button" data-kds-status="${o.id}|completed" class="col-span-2 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm transition active:scale-95">✅ HOÀN THÀNH XONG MÓN</button>`}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('btnOpenKdsModal').addEventListener('click', () => {
+        document.getElementById('kdsModal').classList.remove('hidden');
+        renderKdsBoard();
+      });
+      document.getElementById('btnCloseKds').addEventListener('click', () => {
+        document.getElementById('kdsModal').classList.add('hidden');
+      });
+      document.getElementById('btnKdsRefresh').addEventListener('click', () => syncOrdersFromGoogleSheet(true));
+      document.getElementById('kdsBoardGrid').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-kds-status]');
+        if (!btn) return;
+        const [orderId, newStatus] = btn.dataset.kdsStatus.split('|');
+        const order = state.orders.find(o => o.id === orderId);
+        if (!order) return;
+        order.status = newStatus;
+        if (newStatus === 'completed') order.paymentStatus = 'paid';
+        saveState();
+        upsertSingleOrderToGitHub(order, 'Bep cap nhat don #' + orderId);
+        renderKdsBoard();
+        renderAdminOrders();
+        showToast(`👨‍🍳 Đơn #${orderId} → ${STATUS_MAP[newStatus].label}`, 'success');
+      });
+
+      document.getElementById('btnOpenPosModal').addEventListener('click', () => {
+        posCartMap = {};
+        document.getElementById('posCustName').value = 'Khách tại quầy';
+        renderPosPicker();
+        document.getElementById('posModal').classList.remove('hidden');
+      });
+      document.getElementById('btnClosePosModal').addEventListener('click', () => document.getElementById('posModal').classList.add('hidden'));
+      document.getElementById('posProductPicker').addEventListener('click', (e) => {
+        const inc = e.target.closest('[data-pos-inc]');
+        if (inc) { posCartMap[inc.dataset.posInc] = (posCartMap[inc.dataset.posInc] || 0) + 1; renderPosPicker(); return; }
+        const dec = e.target.closest('[data-pos-dec]');
+        if (dec) { posCartMap[dec.dataset.posDec] = Math.max(0, (posCartMap[dec.dataset.posDec] || 0) - 1); renderPosPicker(); }
+      });
+      document.getElementById('posOrderForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const items = state.products.filter(p => (posCartMap[p.id] || 0) > 0).map(p => ({
+          productId: p.id, name: p.name, category: p.category, size: 'Tại quầy', toppings: [], note: '', qty: posCartMap[p.id], unitPrice: p.price
+        }));
+        if (items.length === 0) { showToast('Hãy chọn ít nhất 1 món khách gọi!', 'error'); return; }
+        const total = items.reduce((acc, it) => acc + it.unitPrice * it.qty, 0);
+        const posOrder = {
+          id: 'POS' + String(Date.now()).slice(-4),
+          userId: 'pos_walkin',
+          customerName: document.getElementById('posCustName').value.trim() || 'Khách tại quầy',
+          customerPhone: 'Tại quầy',
+          customerDob: '',
+          receiveType: 'pickup',
+          address: 'Mua trực tiếp tại quầy',
+          paymentMethod: document.getElementById('posPayMethod').value,
+          transferMemo: '',
+          paymentStatus: 'paid',
+          status: 'completed',
+          createdAt: new Date().toISOString(),
+          receiptImage: '',
+          items,
+          total
+        };
+        state.orders.unshift(posOrder);
+        knownOrderIds.add(posOrder.id);
+        saveSeenOrderIds(knownOrderIds);
+        saveState();
+        document.getElementById('posModal').classList.add('hidden');
+        renderAdminOrders();
+        showToast(`✅ Đã chốt đơn tại quầy #${posOrder.id} (${fmtMoney(total)})!`, 'success');
+        upsertSingleOrderToGitHub(posOrder, 'Don tai quay #' + posOrder.id);
+        openPrintReceipt(posOrder.id);
+      });
+
       document.getElementById('btnConfirmCancel').addEventListener('click', closeConfirmModal);
       document.getElementById('btnConfirmOk').addEventListener('click', () => {
         if (confirmCallback) confirmCallback();
@@ -5855,7 +6234,16 @@
       renderReviews();
       updateCartUI();
       initEvents();
-      syncFromCloudJson(false);
+      syncFromCloudJson(false).then(() => {
+        try {
+          if (state.settings.popupEnabled && state.settings.popupTitle && !sessionStorage.getItem('sunny_popup_seen') && (!currentUser || currentUser.role !== 'admin')) {
+            document.getElementById('welcomePopupTitle').textContent = state.settings.popupTitle;
+            document.getElementById('welcomePopupBody').textContent = state.settings.popupBody || '';
+            document.getElementById('welcomePopupModal').classList.remove('hidden');
+            sessionStorage.setItem('sunny_popup_seen', '1');
+          }
+        } catch (e) {}
+      });
       if (currentUser && currentUser.role === 'admin') {
         startAdminOrderPolling();
       }
