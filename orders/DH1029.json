@@ -8,8 +8,8 @@
   "address": "long dinh",
   "paymentMethod": "cod",
   "transferMemo": "",
-  "paymentStatus": "unpaid",
-  "status": "pending",
+  "paymentStatus": "paid",
+  "status": "completed",
   "createdAt": "2026-11-22T17:19:07.130Z",
   "receiptImage": "",
   "items": [
