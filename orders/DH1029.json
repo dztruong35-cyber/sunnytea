@@ -1,0 +1,50 @@
+{
+  "id": "DH1029",
+  "userId": "u_1795367904988",
+  "customerName": "Nguyen Nhut Truong",
+  "customerPhone": "0939893304",
+  "customerDob": "2007-11-11",
+  "receiveType": "delivery",
+  "address": "long dinh",
+  "paymentMethod": "cod",
+  "transferMemo": "",
+  "paymentStatus": "unpaid",
+  "status": "pending",
+  "createdAt": "2026-11-22T17:19:07.130Z",
+  "receiptImage": "",
+  "items": [
+    {
+      "productId": "p1",
+      "name": "Trà Sữa Trân Châu Đường Đen Kem Cheese",
+      "category": "Trà sữa",
+      "size": "Size M (Chuẩn)",
+      "toppings": [],
+      "note": "",
+      "qty": 28,
+      "unitPrice": 35000
+    },
+    {
+      "productId": "p6",
+      "name": "Combo Trà Sữa + Bánh Tráng Trộn",
+      "category": "Trà sữa",
+      "size": "Size M (Chuẩn)",
+      "toppings": [],
+      "note": "",
+      "qty": 7,
+      "unitPrice": 59000
+    },
+    {
+      "productId": "p6",
+      "name": "Combo Trà Sữa + Bánh Tráng Trộn",
+      "category": "Trà sữa",
+      "size": "Size L (Khổng lồ)",
+      "toppings": [],
+      "note": "70% đường • Đá bình thường",
+      "qty": 51,
+      "unitPrice": 65000
+    }
+  ],
+  "voucherCode": "TRUONGCUTE",
+  "discount": 1883200,
+  "total": 2824800
+}
