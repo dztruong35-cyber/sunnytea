@@ -1,0 +1,42 @@
+{
+  "id": "DH1032",
+  "userId": "u_1795367904988",
+  "customerName": "Nguyen Nhut Truong",
+  "customerPhone": "0939893304",
+  "customerDob": "2007-11-11",
+  "receiveType": "delivery",
+  "address": "long dinh",
+  "paymentMethod": "cod",
+  "transferMemo": "",
+  "paymentStatus": "unpaid",
+  "status": "pending",
+  "createdAt": "2026-11-22T17:26:52.718Z",
+  "receiptImage": "",
+  "items": [
+    {
+      "productId": "p5",
+      "name": "Cá Viên Chiên Nước Mắm Tỏi Ớt",
+      "category": "Đồ ăn vặt",
+      "size": "Phần thường",
+      "toppings": [],
+      "note": "",
+      "qty": 26,
+      "unitPrice": 38000
+    },
+    {
+      "productId": "p6",
+      "name": "Combo Trà Sữa + Bánh Tráng Trộn",
+      "category": "Trà sữa",
+      "size": "Size L (Khổng lồ)",
+      "toppings": [
+        "Kem cheese béo mặn"
+      ],
+      "note": "70% đường • Đá bình thường",
+      "qty": 255,
+      "unitPrice": 75000
+    }
+  ],
+  "voucherCode": "TRUONGCUTE",
+  "discount": 8045200,
+  "total": 12067800
+}
