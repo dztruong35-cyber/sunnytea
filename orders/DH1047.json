@@ -1,0 +1,30 @@
+{
+  "id": "DH1047",
+  "userId": "u_1795367904988",
+  "customerName": "Nguyen Nhut Truong",
+  "customerPhone": "0939893304",
+  "customerDob": "2007-11-11",
+  "receiveType": "delivery",
+  "address": "long dinh",
+  "paymentMethod": "cod",
+  "transferMemo": "",
+  "paymentStatus": "unpaid",
+  "status": "pending",
+  "createdAt": "2026-11-23T01:23:16.622Z",
+  "receiptImage": "",
+  "items": [
+    {
+      "productId": "p2",
+      "name": "Bánh Tráng Trộn Sài Gòn Full Topping",
+      "category": "Bánh tráng",
+      "size": "Phần thường",
+      "toppings": [],
+      "note": "",
+      "qty": 7,
+      "unitPrice": 30000
+    }
+  ],
+  "voucherCode": "TRUONGCUTE",
+  "discount": 84000,
+  "total": 126000
+}
